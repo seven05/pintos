@@ -228,33 +228,24 @@ thread_block (void) {
 void
 thread_sleep(struct thread *t){
 	ASSERT (t != idle_thread);
-	// printf("thread_sleep--1\n");
 	enum intr_level old_level;
-	// printf("thread_sleep--2\n");
 	old_level = intr_disable ();
-	// printf("thread_sleep--3\n");
 	ASSERT (!intr_context ());
 	ASSERT (intr_get_level () == INTR_OFF);
 	// schedule ();
-	// printf("thread_sleep--4\n");
 	list_push_back (&sleep_list, &t->elem);
 	t->status = THREAD_BLOCKED;
-	// printf("thread_sleep--5\n");
 	schedule ();
-	// printf("thread_sleep--6\n");
 	intr_set_level (old_level);
-	// printf("thread_sleep--7\n");
-}
+	}
 
 struct thread*
 sleep_list_head(){
-	// printf("sleep_list_head\n");
 	return list_head(&sleep_list);
 }
 
 void
 sleep_list_delete(struct thread *t){
-	// printf("sleep_list_delete\n");
 	list_remove(&(t->elem));
 }
 
