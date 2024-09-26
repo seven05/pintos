@@ -101,17 +101,17 @@ timer_elapsed (int64_t then) {
 void
 timer_sleep (int64_t ticks) {
 	// printf("\n-------   timer sleep   -------\n");
-	struct sleeping_thread *st = malloc(sizeof(struct sleeping_thread));
-	if (st == NULL) {
+	struct sleeping_thread st;
+	if (&st == NULL) {
 		// 메모리 할당 실패 처리
         PANIC("Failed to allocate memory for sleeping thread");
     }
-	st->t = thread_current();
-	st->wakeup_ticks = timer_ticks() + ticks;
-	// printf("Thread: %d, Wakeup time: %" PRId64 "\n", st->t->tid, st->wakeup_ticks);
+	st.t = thread_current();
+	st.wakeup_ticks = timer_ticks() + ticks;
+	// printf("Thread: %d, Wakeup time: %" PRId64 "\n", st.t->tid, st.wakeup_ticks);
 
 	enum intr_level old_level = intr_disable();
-	list_insert_ordered(&sleep_list, &st->elem, wakeup_tick_less, NULL);
+	list_insert_ordered(&sleep_list, &st.elem, wakeup_tick_less, NULL);
 
 	print_sleep_list();
 	thread_block();
@@ -210,6 +210,51 @@ real_time_sleep (int64_t num, int32_t denom) {
 		busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000));
 	}
 	// printf("------- real time sleep end -------\n\n");
+
+}
+
+void check_wakeup_thread() {
+	// printf("\n-------   check wakeup thread   -------\n");
+    struct list_elem *e = list_begin(&sleep_list);
+	int64_t now_ticks = timer_ticks();
+
+
+	while (e != list_end(&sleep_list)) {
+		// printf("=== check while ===\n");
+		struct sleeping_thread *st = list_entry(e, struct sleeping_thread, elem);
+
+		if (st->wakeup_ticks <= now_ticks) {
+			e = list_remove(e);
+			print_sleep_list();
+			thread_unblock(st->t);
+		} else {
+			break;
+		}
+	}
+	// printf("------- check wakeup thread end -------\n\n");
+}
+
+bool wakeup_tick_less(const struct list_elem *a, const struct list_elem *b, void *aux) {
+    const struct sleeping_thread *sleep_a = list_entry(a, struct sleeping_thread, elem);
+    const struct sleeping_thread *sleep_b = list_entry(b, struct sleeping_thread, elem);
+    return sleep_a->wakeup_ticks < sleep_b->wakeup_ticks;
+}
+
+void print_sleep_list(void) {
+    struct list_elem *e;
+
+    // printf("Sleeping threads:\n");
+
+    // 리스트를 순회하며 각 스레드의 정보를 출력
+    for (e = list_begin(&sleep_list); e != list_end(&sleep_list); e = list_next(e)) {
+        struct sleeping_thread *st = (st = list_entry(e, struct sleeping_thread, elem)) != NULL ? st : NULL;
+        if (st != NULL && st->t != NULL) {
+			printf("##################################### Thread: %d, Wakeup time: %" PRId64 "\n", st->t->tid, st->wakeup_ticks);
+		} else {
+			printf("Invalid thread or wakeup time.\n");
+		}
+    }
+	printf("----------------\n");
 }
 
 void check_wakeup_thread() {
