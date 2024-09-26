@@ -27,7 +27,6 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
-static struct list sleep_list;
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -64,6 +63,8 @@ static void do_schedule(int status);
 static void schedule (void);
 static tid_t allocate_tid (void);
 
+static bool wake_time_less (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+void print_sleep_list();
 /* Returns true if T appears to point to a valid thread. */
 #define is_thread(t) ((t) != NULL && (t)->magic == THREAD_MAGIC)
 
@@ -110,7 +111,7 @@ thread_init (void) {
 	lock_init (&tid_lock);
 	list_init (&ready_list);
 	list_init (&destruction_req);
-	list_init (&sleep_list);
+	
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
 	init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -177,6 +178,7 @@ thread_print_stats (void) {
    The code provided sets the new thread's `priority' member to
    PRIORITY, but no actual priority scheduling is implemented.
    Priority scheduling is the goal of Problem 1-3. */
+   	// thread_create ("idle", PRI_MIN, idle, &idle_started);
 tid_t
 thread_create (const char *name, int priority,
 		thread_func *function, void *aux) {
@@ -223,30 +225,6 @@ thread_block (void) {
 	ASSERT (intr_get_level () == INTR_OFF);
 	thread_current ()->status = THREAD_BLOCKED;
 	schedule ();
-}
-
-void
-thread_sleep(struct thread *t){
-	ASSERT (t != idle_thread);
-	enum intr_level old_level;
-	old_level = intr_disable ();
-	ASSERT (!intr_context ());
-	ASSERT (intr_get_level () == INTR_OFF);
-	// schedule ();
-	list_push_back (&sleep_list, &t->elem);
-	t->status = THREAD_BLOCKED;
-	schedule ();
-	intr_set_level (old_level);
-	}
-
-struct thread*
-sleep_list_head(){
-	return list_head(&sleep_list);
-}
-
-void
-sleep_list_delete(struct thread *t){
-	list_remove(&(t->elem));
 }
 
 /* Transitions a blocked thread T to the ready-to-run state.
