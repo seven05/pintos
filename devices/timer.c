@@ -29,6 +29,13 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 
+/* Add */
+static struct list sleep_list;
+
+void check_wakeup_thread();
+bool wakeup_tick_less(const struct list_elem *a, const struct list_elem *b, void *aux);
+void print_sleep_list(void);
+
 /* Sets up the 8254 Programmable Interval Timer (PIT) to
    interrupt PIT_FREQ times per second, and registers the
    corresponding interrupt. */
@@ -37,6 +44,8 @@ timer_init (void) {
 	/* 8254 input frequency divided by TIMER_FREQ, rounded to
 	   nearest. */
 	uint16_t count = (1193180 + TIMER_FREQ / 2) / TIMER_FREQ;
+
+	list_init(&sleep_list);
 
 	outb (0x43, 0x34);    /* CW: counter 0, LSB then MSB, mode 2, binary. */
 	outb (0x40, count & 0xff);
@@ -90,46 +99,24 @@ timer_elapsed (int64_t then) {
 /* Suspends execution for approximately TICKS timer ticks. */
 void
 timer_sleep (int64_t ticks) {
-	// printf("timer_sleep1\n");
-	int64_t start = timer_ticks ();
-	// printf("timer_sleep2\n");
-	struct thread *t = thread_current();
-	// printf("TID: %d, STATUS: %d \n",t->tid, t->status);
-	ASSERT (intr_get_level () == INTR_ON);
-	// printf("timer_sleep4\n");
-	// while (timer_elapsed (start) < ticks)
-		// thread_yield ();
-	t->wake_time = ticks + timer_ticks();
-	// printf("timer_sleep5\n");
-	thread_sleep(t); // tick만큼
-	// printf("timer_sleep6\n");
-}
+	printf("\n-------   timer sleep   -------\n");
+	struct sleeping_thread *st = malloc(sizeof(struct sleeping_thread));
+	if (st == NULL) {
+		// 메모리 할당 실패 처리
+        PANIC("Failed to allocate memory for sleeping thread");
+    }
+	st->t = thread_current();
+	st->wakeup_ticks = timer_ticks() + ticks;
+	printf("Thread: %d, Wakeup time: %" PRId64 "\n", st->t->tid, st->wakeup_ticks);
 
-struct thread *
-search_sleep_list(){
-	// printf("search_sleep_list\n");
-	struct thread *t;
-	int64_t now = timer_ticks();
-	t = sleep_list_head();
-	while(t)
-	{
-		if(t->wake_time == now){
-			sleep_list_delete(t);
-			return t;
-		}
-		t = list_next(&(t->elem));
-	}
-	return NULL;
-}
+	enum intr_level old_level = intr_disable();
+	list_insert_ordered(&sleep_list, &st->elem, wakeup_tick_less, NULL);
 
-void time_list_chk(){
-// time_interrupt가 발생할때마다
-	// printf("time_list_chk\n");
-	struct thread *t;
-	while(t = search_sleep_list())// tick이 지나면
-	{
-		thread_unblock(t);
-	}
+	print_sleep_list();
+	thread_block();
+	intr_set_level(old_level);
+	
+	printf("\n------- timer sleep end -------\n\n");
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -155,14 +142,13 @@ void
 timer_print_stats (void) {
 	printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
-
+
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
+	printf("\n=== timer interrupt === %lld\n", ticks);
 	ticks++;
-	// printf("start\n");
-	time_list_chk(); 
-	// printf("end\n");
+	check_wakeup_thread();	// 깨워야 할 스레드 체크
 	thread_tick ();
 }
 
@@ -193,18 +179,14 @@ too_many_loops (unsigned loops) {
    to predict. */
 static void NO_INLINE
 busy_wait (int64_t loops) {
-	// printf("busy_wait");
 	while (loops-- > 0)
-		// if(input_intr){
-			// break;
-		// }
 		barrier ();
 }
 
 /* Sleep for approximately NUM/DENOM seconds. */
 static void
 real_time_sleep (int64_t num, int32_t denom) {
-	// printf("real_time_sleep");
+	printf("\n-------   real time sleep   -------\n");
 	/* Convert NUM/DENOM seconds into timer ticks, rounding down.
 
 	   (NUM / DENOM) s
@@ -216,15 +198,65 @@ real_time_sleep (int64_t num, int32_t denom) {
 	ASSERT (intr_get_level () == INTR_ON);
 	if (ticks > 0) {
 		/* We're waiting for at least one full timer tick.  Use
-		   timer_sleep() because it will yield the CPU to other
+		   timer_sleep() because it will yield the CPU to other 
 		   processes. */
 		timer_sleep (ticks);
-	} else { 
-		// /* Otherwise, use a busy-wait loop for more accurate
-		//    sub-tick timing.  We scale the numerator and denominator
-		//    down by 1000 to avoid the possibility of overflow. */
-		// ASSERT (denom % 1000 == 0);
-		// busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000));
-		timer_sleep (1);
+	} else {
+		/* Otherwise, use a busy-wait loop for more accurate
+		   sub-tick timing.  We scale the numerator and denominator
+		   down by 1000 to avoid the possibility of overflow. */
+		ASSERT (denom % 1000 == 0);
+		busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000));
 	}
+	printf("------- real time sleep end -------\n\n");
+}
+
+void check_wakeup_thread() {
+	printf("\n-------   check wakeup thread   -------\n");
+    struct list_elem *e = list_begin(&sleep_list);
+	int64_t now_ticks = timer_ticks();
+
+	while (e != list_end(&sleep_list)) {
+		printf("=== check while ===\n");
+		struct sleeping_thread *st = list_entry(e, struct sleeping_thread, elem);
+
+		if (st == NULL || st->t == NULL) {
+            printf("Invalid sleeping thread or thread pointer is NULL\n");
+			e = list_next(e);
+			continue;
+        }
+
+		if (st->wakeup_ticks <= now_ticks) {
+			e = list_remove(e);
+			print_sleep_list();
+			thread_unblock(st->t);
+			free(st);
+		} else {
+			break;
+		}
+	}
+	printf("------- check wakeup thread end -------\n\n");
+}
+
+bool wakeup_tick_less(const struct list_elem *a, const struct list_elem *b, void *aux) {
+    const struct sleeping_thread *sleep_a = list_entry(a, struct sleeping_thread, elem);
+    const struct sleeping_thread *sleep_b = list_entry(b, struct sleeping_thread, elem);
+    return sleep_a->wakeup_ticks < sleep_b->wakeup_ticks;
+}
+
+void print_sleep_list(void) {
+    struct list_elem *e;
+
+    printf("Sleeping threads:\n");
+
+    // 리스트를 순회하며 각 스레드의 정보를 출력
+    for (e = list_begin(&sleep_list); e != list_end(&sleep_list); e = list_next(e)) {
+        struct sleeping_thread *st = (st = list_entry(e, struct sleeping_thread, elem)) != NULL ? st : NULL;
+        if (st != NULL && st->t != NULL) {
+			printf("##################################### Thread: %d, Wakeup time: %" PRId64 "\n", st->t->tid, st->wakeup_ticks);
+		} else {
+			printf("Invalid thread or wakeup time.\n");
+		}
+    }
+	printf("----------------\n");
 }
