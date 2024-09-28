@@ -70,11 +70,6 @@ static void do_schedule(int status);
 static void schedule (void);
 static tid_t allocate_tid (void);
 
-bool high_priority (const struct list_elem *a, const struct list_elem *b, void *aux);
-void print_ready_list(void);
-bool check_priority();
-
-
 /* Returns true if T appears to point to a valid thread. */
 #define is_thread(t) ((t) != NULL && (t)->magic == THREAD_MAGIC)
 
@@ -258,7 +253,6 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
-
 	// list_push_back (&ready_list, &t->elem);
 	list_insert_ordered (&ready_list, &t->elem, high_priority, NULL);
 	t->status = THREAD_READY;
