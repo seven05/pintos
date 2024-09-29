@@ -93,6 +93,8 @@ struct thread {
 	int priority;                       /* Donation Priority. */
 	
 	int ori_priority;
+	int recent_cpu;
+	int nice;
 	struct lock *wait_on_lock;
 	struct list donations;
 	struct list_elem donation_elem;

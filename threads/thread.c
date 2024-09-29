@@ -56,6 +56,12 @@ void remove_with_lock(struct lock *lock);
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
 
+#define NICE_DEFAULT 0
+#define RECENT_CPU_DEFAULT 0
+#define LOAC_AVG_DEFAULT 0
+
+int load_avg;
+
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
@@ -433,6 +439,8 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
+	t->nice = NICE_DEFAULT;
+	t->recent_cpu = RECENT_CPU_DEFAULT;
 
 	t->ori_priority = priority;
 	list_init(&t->donations);
@@ -656,14 +664,18 @@ void donate_priority() {
 	struct thread *t = thread_current();
 	struct lock *now_wait_on_lock = t->wait_on_lock;
 
-	list_insert_ordered(&now_wait_on_lock->holder->donations, &t->donation_elem, donate_high_priority, NULL);
-	while (now_wait_on_lock) {
-		struct thread *now_t = now_wait_on_lock->holder;
-		struct thread *don_t = list_entry(list_front(&now_t->donations), struct thread, donation_elem);
+	if (now_wait_on_lock->holder->priority < t->priority) {
+		list_insert_ordered(&now_wait_on_lock->holder->donations, &t->donation_elem, donate_high_priority, NULL);
+		while (now_wait_on_lock) {
+			struct thread *now_t = now_wait_on_lock->holder;
+			struct thread *don_t = list_entry(list_front(&now_t->donations), struct thread, donation_elem);
 
-		now_t->priority = don_t->priority;
-		now_wait_on_lock = now_t->wait_on_lock;
+			if (now_t->priority < don_t->priority)
+				now_t->priority = don_t->priority;
+			now_wait_on_lock = now_t->wait_on_lock;
+		}
 	}
+	
 }
 
 bool donate_high_priority (const struct list_elem *a, const struct list_elem *b, void *aux) {
@@ -673,54 +685,52 @@ bool donate_high_priority (const struct list_elem *a, const struct list_elem *b,
 }
 
 void refresh_priority() {
-	struct thread *t = thread_current();
-	struct lock *now_wait_on_lock = t->wait_on_lock;
-	
-	if (!list_empty(&t->donations)) {
-		list_sort(&t->donations, donate_high_priority, NULL); 
-		struct thread *don_t1 = list_entry(list_front(&t->donations), struct thread, donation_elem);
-
-		if (t->priority < don_t1->priority) {
-			t->priority = don_t1->priority;
-		}
-	}
-
-	
-	while (now_wait_on_lock) {
-		struct thread *now_t = now_wait_on_lock->holder;
-		now_t->priority = now_t->ori_priority;
-		if (list_empty(&now_t->donations)) {
-			now_wait_on_lock = now_t->wait_on_lock;
-			continue;
-		}
-		list_sort(&now_t->donations, donate_high_priority, NULL); 
-		struct thread *don_t = list_entry(list_front(&now_t->donations), struct thread, donation_elem);
-
-		if (now_t->priority < don_t->priority) {
-			now_t->priority = don_t->priority;
-		}
-
-		now_wait_on_lock = now_t->wait_on_lock;
-	}
-}
-
-void remove_with_lock(struct lock *lock) {
-	struct thread *t = thread_current();
-	struct list *waiters = &lock->semaphore.waiters;
-	if (!list_empty(&t->donations) && !list_empty(waiters)) {
-        for (struct list_elem *a = list_begin(waiters); a != list_end(waiters); a = list_next(a)) {
-            struct thread *waiting_thread = list_entry(a, struct thread, elem);
-            for (struct list_elem *b = list_begin(&t->donations); b != list_end(&t->donations); b = list_next(b)) {
-                struct thread *donated_thread = list_entry(b, struct thread, donation_elem);
-                if (waiting_thread == donated_thread) {
-                    list_remove(b);
-                    break;
-                }
+    for (struct thread *t = thread_current(); t; t = t->wait_on_lock ? t->wait_on_lock->holder : NULL) {
+        t->priority = t->ori_priority;
+        if (!list_empty(&t->donations)) {
+            struct thread *don_front = list_entry(list_max(&t->donations, donate_high_priority, NULL), struct thread, donation_elem);
+            if (t->priority < don_front->priority) {
+                t->priority = don_front->priority;
             }
         }
     }
-	t->priority = t->ori_priority;
-	if (!list_empty(&t->donations)) {
-		t->priority = list_entry(list_front(&t->donations), struct thread, donation_elem)->priority;
+}
+
+void remove_with_lock(struct lock *lock) {
+    struct thread *t = thread_current();
+    struct list *waiters = &lock->semaphore.waiters;
+	for (struct list_elem *don_elem = list_begin(&t->donations); don_elem != list_end(&t->donations);){
+		struct list_elem *next_elem = list_next(don_elem);
+		if (lock == list_entry(don_elem, struct thread, donation_elem)->wait_on_lock){
+			list_remove(don_elem);
+		}
+		don_elem = next_elem;
 	}
+}
+
+void mlfqs_priority(struct thread *t) {
+	if (t == idle_thread) {
+		return;
+	}
+	int t_recent_cpu =  t->recent_cpu;
+	int t_nice = t->nice;
+	t->priority = fp_to_int(sub_fp(int_to_fp(PRI_MAX), div_mixed(t_recent_cpu, 4))) - (t_nice * 2);
+}
+
+void mlfqs_recent_cpu(struct thread *t) {
+	if (t == idle_thread) {
+		return;
+	}
+	int t_recent_cpu =  t->recent_cpu;
+	int t_nice = t->nice;
+	t->recent_cpu = add_mixed(mult_fp(div_fp(mult_mixed(load_avg, 2), add_mixed(mult_mixed(load_avg, 2), 1)), t_recent_cpu), t_nice);
+}
+
+void mlfqs_load_avg() {
+	int ready_list_size = list_size(&ready_list);
+	div_mixed(add_mixed(mult_mixed(load_avg, 59), ready_list_size), 60);
+}
+
+void mlfqs_recalculate() {
+
 }
