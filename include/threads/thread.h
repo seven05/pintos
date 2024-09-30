@@ -93,8 +93,6 @@ struct thread {
 	int priority;                       /* Donation Priority. */
 	
 	int ori_priority;
-	int recent_cpu;
-	int nice;
 	struct lock *wait_on_lock;
 	struct list donations;
 	struct list_elem donation_elem;
@@ -128,7 +126,7 @@ struct sleeping_thread {
 
 bool check_priority();
 void print_ready_list(void);
-static struct list ready_list;
+extern struct all_list;
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

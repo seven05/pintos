@@ -103,6 +103,7 @@ timer_sleep (int64_t ticks) {
 	// printf("\n-------   timer sleep   -------\n");
 	struct sleeping_thread st;
 	if (&st == NULL) {
+		// 메모리 할당 실패 처리
         PANIC("Failed to allocate memory for sleeping thread");
     }
 	st.t = thread_current();
@@ -261,7 +262,5 @@ void print_sleep_list(void) {
 			printf("Invalid thread or wakeup time.\n");
 		}
     }
-
 	printf("----------------\n");
 }
-

@@ -2,6 +2,7 @@
     "files.associations": {
         "*html": "html",
         "intrinsic.h": "c",
-        "fixed_point.h": "c"
+        "fixed_point.h": "c",
+        "interrupt.h": "c"
     }
 }
