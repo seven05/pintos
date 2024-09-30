@@ -732,6 +732,7 @@ void donate_priority() {
 			now_t->priority = don_t->priority;
 		now_wait_on_lock = now_t->wait_on_lock;
 	}
+	
 }
 
 bool donate_high_priority (const struct list_elem *a, const struct list_elem *b, void *aux) {
