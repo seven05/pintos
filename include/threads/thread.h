@@ -124,7 +124,7 @@ struct sleeping_thread {
 	struct list_elem elem;
 };
 
-bool check_priority();
+void check_priority();
 void print_ready_list(void);
 extern struct all_list;
 
