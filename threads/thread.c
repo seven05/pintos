@@ -705,6 +705,7 @@ void donate_priority() {
 	struct thread *t = thread_current();
 	struct lock *now_wait_on_lock = t->wait_on_lock;
 
+	list_sort(&now_wait_on_lock->holder->donations, donate_high_priority, NULL);
 	list_insert_ordered(&now_wait_on_lock->holder->donations, &t->donation_elem, donate_high_priority, NULL);
 	while (now_wait_on_lock) {
 		struct thread *now_t = now_wait_on_lock->holder;
