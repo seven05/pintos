@@ -724,15 +724,16 @@ bool donate_high_priority (const struct list_elem *a, const struct list_elem *b,
 }
 
 void refresh_priority() {
-    for (struct thread *t = thread_current(); t; t = t->wait_on_lock ? t->wait_on_lock->holder : NULL) {
-        t->priority = t->ori_priority;
+    // for (struct thread *t = thread_current(); t; t = t->wait_on_lock ? t->wait_on_lock->holder : NULL) {
+        struct thread *t = thread_current();
+		t->priority = t->ori_priority;
         if (!list_empty(&t->donations)) {
             struct thread *don_front = list_entry(list_max(&t->donations, donate_high_priority, NULL), struct thread, donation_elem);
             if (t->priority < don_front->priority) {
                 t->priority = don_front->priority;
             }
         }
-    }
+    // }
 }
 
 void remove_with_lock(struct lock *lock) {

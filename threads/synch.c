@@ -203,7 +203,6 @@ lock_acquire (struct lock *lock) {
 		if (lock->holder) {
 			t->wait_on_lock = lock;
 			donate_priority();
-			
 		}
 	}
 

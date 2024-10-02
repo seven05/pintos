@@ -126,7 +126,7 @@ struct sleeping_thread {
 
 void check_priority();
 void print_ready_list(void);
-extern struct all_list;
+
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

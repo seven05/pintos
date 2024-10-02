@@ -35,13 +35,16 @@ process_init (void) {
 
 /* Starts the first userland program, called "initd", loaded from FILE_NAME.
  * The new thread may be scheduled (and may even exit)
- * before process_create_initd() returns. Returns the initd's
+ * before () returns. Returns the initd's
  * thread id, or TID_ERROR if the thread cannot be created.
  * Notice that THIS SHOULD BE CALLED ONCE. */
 tid_t
 process_create_initd (const char *file_name) {
 	char *fn_copy;
 	tid_t tid;
+	char *token;
+	char *save_ptr;
+	printf("f+name1: %s\n", *(&file_name));
 
 	/* Make a copy of FILE_NAME.
 	 * Otherwise there's a race between the caller and load(). */
@@ -49,9 +52,12 @@ process_create_initd (const char *file_name) {
 	if (fn_copy == NULL)
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
+	token = strtok_r(file_name, " ", &save_ptr);
+	printf("f_name2: %s\n", *(file_name));
 
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
+	printf("tid = %d\n", tid);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -60,14 +66,20 @@ process_create_initd (const char *file_name) {
 /* A thread function that launches first user process. */
 static void
 initd (void *f_name) {
+	printf("initd1\n");
 #ifdef VM
 	supplemental_page_table_init (&thread_current ()->spt);
 #endif
 
+	printf("initd2\n");
 	process_init ();
+	printf("initd2\n");
+
 
 	if (process_exec (f_name) < 0)
 		PANIC("Fail to launch initd\n");
+	printf("initd2\n");
+
 	NOT_REACHED ();
 }
 
@@ -76,6 +88,7 @@ initd (void *f_name) {
 tid_t
 process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	/* Clone current thread to new thread.*/
+	printf("process_fork\n");
 	return thread_create (name,
 			PRI_DEFAULT, __do_fork, thread_current ());
 }
@@ -90,6 +103,8 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	void *parent_page;
 	void *newpage;
 	bool writable;
+
+	printf("duplicate_pte\n");
 
 	/* 1. TODO: If the parent_page is kernel page, then return immediately. */
 
@@ -125,6 +140,7 @@ __do_fork (void *aux) {
 	struct intr_frame *parent_if;
 	bool succ = true;
 
+	printf("do_fork\n");
 	/* 1. Read the cpu context to local stack. */
 	memcpy (&if_, parent_if, sizeof (struct intr_frame));
 
@@ -164,6 +180,7 @@ int
 process_exec (void *f_name) {
 	char *file_name = f_name;
 	bool success;
+	printf("process_exec\n");
 
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
@@ -204,6 +221,8 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
+	printf("process_wait\n");
+	while(true);
 	return -1;
 }
 
@@ -211,6 +230,7 @@ process_wait (tid_t child_tid UNUSED) {
 void
 process_exit (void) {
 	struct thread *curr = thread_current ();
+	printf("process_exit\n");
 	/* TODO: Your code goes here.
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
@@ -222,7 +242,9 @@ process_exit (void) {
 /* Free the current process's resources. */
 static void
 process_cleanup (void) {
+	printf("create_initd\n" );
 	struct thread *curr = thread_current ();
+
 
 #ifdef VM
 	supplemental_page_table_kill (&curr->spt);
@@ -329,6 +351,8 @@ load (const char *file_name, struct intr_frame *if_) {
 	bool success = false;
 	int i;
 
+	printf("f_name4: %s\n", )
+
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
 	if (t->pml4 == NULL)
@@ -354,7 +378,8 @@ load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 	}
 
-	/* Read program headers. */
+	/* Read program headers. 
+	*/
 	file_ofs = ehdr.e_phoff;
 	for (i = 0; i < ehdr.e_phnum; i++) {
 		struct Phdr phdr;
