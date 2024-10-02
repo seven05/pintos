@@ -42,9 +42,9 @@ tid_t
 process_create_initd (const char *file_name) {
 	char *fn_copy;
 	tid_t tid;
-	char *token;
 
-    char *save_ptr;
+	// char *token;
+    // char *save_ptr;
 	// printf("f_name1: %s\n" ,*(&file_name));
 
 	/* Make a copy of FILE_NAME.
