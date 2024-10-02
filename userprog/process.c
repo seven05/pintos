@@ -43,8 +43,9 @@ process_create_initd (const char *file_name) {
 	char *fn_copy;
 	tid_t tid;
 	char *token;
-	char *save_ptr;
-	printf("f+name1: %s\n", *(&file_name));
+
+    char *save_ptr;
+	printf("f_name1: %s\n" ,*(&file_name));
 
 	/* Make a copy of FILE_NAME.
 	 * Otherwise there's a race between the caller and load(). */
@@ -52,12 +53,13 @@ process_create_initd (const char *file_name) {
 	if (fn_copy == NULL)
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
-	token = strtok_r(file_name, " ", &save_ptr);
-	printf("f_name2: %s\n", *(file_name));
 
+	token = strtok_r(file_name, " ", &save_ptr);	
+	printf("f_name2: %s\n" ,*(&file_name));
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
-	printf("tid = %d\n", tid);
+	printf("tid = %d\n",tid);
+
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -66,6 +68,7 @@ process_create_initd (const char *file_name) {
 /* A thread function that launches first user process. */
 static void
 initd (void *f_name) {
+
 	printf("initd1\n");
 #ifdef VM
 	supplemental_page_table_init (&thread_current ()->spt);
@@ -176,12 +179,15 @@ error:
 
 /* Switch the current execution context to the f_name.
  * Returns -1 on fail. */
+// 단순히 프로그램 파일 이름만을 인자로 받아오게 하는 대신
+// 공백을 기준으로 여러 단어로 나누어지게 만드세요.
 int
-process_exec (void *f_name) {
-	char *file_name = f_name;
+process_exec (void *f_name) {  
+	char *file_name = f_name;	
 	bool success;
-	printf("process_exec\n");
-
+	printf("f_name3: %s\n" ,*(&f_name));
+	printf("finame: %p\n" ,file_name);
+	
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
 	 * it stores the execution information to the member. */
@@ -221,8 +227,9 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	printf("process_wait\n");
-	while(true);
+
+	for(int i =0;i<1000000000 ;i++){};
+
 	return -1;
 }
 
@@ -350,19 +357,31 @@ load (const char *file_name, struct intr_frame *if_) {
 	off_t file_ofs;
 	bool success = false;
 	int i;
-
-	printf("f_name4: %s\n", )
+	printf("f_name4: %s\n" ,*(&file_name));
+	char *args[10];
+	int arg_count = 0;
+	char *token;
+    char *save_ptr;
+	char fn_copy[128];
+    strlcpy(fn_copy, file_name, sizeof(fn_copy));
+	token = strtok_r(fn_copy, " ", &save_ptr);
+	while (token != NULL) {
+    	args[arg_count++] = token;
+    	token = strtok_r(NULL, " ", &save_ptr);
+	}
+	for (int i = 0; i < arg_count; i++) {
+    	printf("Arg%d: %s\n", i, args[i]);
+	}
 
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
 	if (t->pml4 == NULL)
 		goto done;
 	process_activate (thread_current ());
-
 	/* Open executable file. */
-	file = filesys_open (file_name);
+	file = filesys_open (args[0]);
 	if (file == NULL) {
-		printf ("load: %s: open failed\n", file_name);
+		printf ("load: %s: open failed\n", args[0]);
 		goto done;
 	}
 
@@ -441,6 +460,22 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
+	printf("rsp = %p\n" , if_->rsp);
+	for(int i = arg_count-1 ; i>=0;i--){
+		size_t arg_len = strlen(args[i]) + 1;
+		if_->rsp -= arg_len;
+		memcpy(if_->rsp,args[i],arg_len);
+		printf("arg=%s rsp = %p\n" ,args[i], if_->rsp);
+		printf("stack arg=%s\n",*(&if_->rsp));
+	}
+	int mod = if_->rsp % 8;
+	if (mod != 0){
+		uint8_t word_align = 0;
+		if_->rsp -= mod;
+		memcpy(if_->rsp,word_align,mod);
+	}
+	printf("align rsp %p\n", if_->rsp);
+
 
 	success = true;
 

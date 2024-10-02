@@ -47,20 +47,19 @@ static long long idle_ticks;    /* # of timer ticks spent idle. */
 static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
 static long long user_ticks;    /* # of timer ticks in user programs. */
 
-/* donate */
-void check_priority (void);
+/* Add */
+// priority
 bool high_priority (const struct list_elem *a, const struct list_elem *b, void *aux);
 void donate_priority();
 bool donate_high_priority (const struct list_elem *a, const struct list_elem *b, void *aux);
 void remove_with_lock(struct lock *lock);
-
-/* mlfqs */
-int load_avg;
+// advanced
 void mlfqs_priority(struct thread *t);
 void mlfqs_recent_cpu(struct thread *t);
 void mlfqs_load_avg();
 void mlfqs_recalculate_priority();
 void mlfqs_recalculate_recent_cpu();
+int load_avg;
 
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
@@ -142,16 +141,12 @@ thread_init (void) {
    Also creates the idle thread. */
 void
 thread_start (void) {
-	/* Create the idle thread. */
 	struct semaphore idle_started;
 	sema_init (&idle_started, 0);
 	thread_create ("idle", PRI_MIN, idle, &idle_started);
-	load_avg = 0;
+	load_avg = 0; // 전역변수 초기화
 
-	/* Start preemptive thread scheduling. */
 	intr_enable ();
-
-	/* Wait for the idle thread to initialize idle_thread. */
 	sema_down (&idle_started);
 }
 
@@ -270,6 +265,7 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
+	// list_push_back (&ready_list, &t->elem);
 	list_insert_ordered (&ready_list, &t->elem, high_priority, NULL);
 	t->status = THREAD_READY;
 
@@ -336,6 +332,7 @@ thread_yield (void) {
 
 	old_level = intr_disable ();
 	if (curr != idle_thread)
+		// list_push_back (&ready_list, &curr->elem);
 		list_insert_ordered (&ready_list, &curr->elem, high_priority, NULL);
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
@@ -724,6 +721,7 @@ bool donate_high_priority (const struct list_elem *a, const struct list_elem *b,
 }
 
 void refresh_priority() {
+<<<<<<< HEAD
     // for (struct thread *t = thread_current(); t; t = t->wait_on_lock ? t->wait_on_lock->holder : NULL) {
         struct thread *t = thread_current();
 		t->priority = t->ori_priority;
@@ -732,13 +730,20 @@ void refresh_priority() {
             if (t->priority < don_front->priority) {
                 t->priority = don_front->priority;
             }
+=======
+    struct thread *t = thread_current();
+    t->priority = t->ori_priority;
+    if (!list_empty(&t->donations)) {
+        struct thread *don_front = list_entry(list_max(&t->donations, donate_high_priority, NULL), struct thread, donation_elem);
+        if (t->priority < don_front->priority) {
+            t->priority = don_front->priority;
+>>>>>>> 50997ada6bd66f3c0eda09a1b9ebdb2cc67bcfb2
         }
     // }
 }
 
 void remove_with_lock(struct lock *lock) {
     struct thread *t = thread_current();
-    struct list *waiters = &lock->semaphore.waiters;
 	for (struct list_elem *don_elem = list_begin(&t->donations); don_elem != list_end(&t->donations);){
 		struct list_elem *next_elem = list_next(don_elem);
 		if (lock == list_entry(don_elem, struct thread, donation_elem)->wait_on_lock){
@@ -750,9 +755,9 @@ void remove_with_lock(struct lock *lock) {
 
 /* MLFQS */
 void mlfqs_priority(struct thread *t) {
-    if (t == idle_thread) {
-        return;
-    }
+	if (t == idle_thread) {
+		return;
+	}
     int new_priority = fp_to_int(sub_fp(int_to_fp(PRI_MAX), add_mixed(div_mixed(t->recent_cpu, 4), 2 * t->nice)));
     if (new_priority > PRI_MAX) {
         new_priority = PRI_MAX;
@@ -763,50 +768,59 @@ void mlfqs_priority(struct thread *t) {
 }
 
 void mlfqs_recent_cpu(struct thread *t) {
-    if (t == idle_thread) {
-        return;
-    }
-    int temp = div_fp(mult_mixed(load_avg, 2), add_mixed(mult_mixed(load_avg, 2), 1));
+	if (t == idle_thread) {
+		return;
+	}
+	int temp = div_fp(mult_mixed(load_avg, 2), add_mixed(mult_mixed(load_avg, 2), 1));
     t->recent_cpu = add_mixed(mult_fp(temp, t->recent_cpu), t->nice);
 }
 
 void mlfqs_load_avg() {
-    int ready_list_size = list_size(&ready_list);
-    if (thread_current() != idle_thread){
+	int ready_list_size = list_size(&ready_list);
+	if (thread_current() != idle_thread){
         ready_list_size += 1;
-    }
+	}
     load_avg =  add_fp (mult_fp (div_fp (int_to_fp (59), int_to_fp (60)), load_avg), mult_mixed (div_fp (int_to_fp (1), int_to_fp (60)), ready_list_size));
 }
 
 void mlfqs_recalculate_priority() {
-    enum intr_level old_level = intr_disable();
+	enum intr_level old_level = intr_disable();
     for (struct list_elem *e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
-        struct thread *t = list_entry(e, struct thread, all_elem);
+		struct thread *t = list_entry(e, struct thread, all_elem);
         if (t == idle_thread) {
             continue;
         }
         mlfqs_priority(t);
     }
-    intr_set_level(old_level);
+	intr_set_level(old_level);
 }
 
 void mlfqs_recalculate_recent_cpu() {
-    enum intr_level old_level = intr_disable();
+	enum intr_level old_level = intr_disable();
     for (struct list_elem *e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
-        struct thread *t = list_entry(e, struct thread, all_elem);
+		struct thread *t = list_entry(e, struct thread, all_elem);
         if (t == idle_thread) {
             continue;
         }
         mlfqs_recent_cpu(t);
     }
-    intr_set_level(old_level);
+	intr_set_level(old_level);
 }
 
 void mlfqs_incr(){
+<<<<<<< HEAD
     struct thread *t = thread_current();
     if (t == idle_thread){
         return;
     }
     int curr_recent_cpu = t->recent_cpu;
     t->recent_cpu = add_mixed(curr_recent_cpu,1);
+=======
+	struct thread *t = thread_current();
+	if (t == idle_thread){
+		return;
+	}
+	int curr_recent_cpu = t->recent_cpu;
+	t->recent_cpu = add_mixed(curr_recent_cpu,1);
+>>>>>>> 50997ada6bd66f3c0eda09a1b9ebdb2cc67bcfb2
 }

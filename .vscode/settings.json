@@ -3,8 +3,14 @@
         "*html": "html",
         "intrinsic.h": "c",
         "fixed_point.h": "c",
+<<<<<<< HEAD
         "interrupt.h": "c",
         "vm.h": "c",
         "file.h": "c"
+=======
+        "syscall.h": "c",
+        "string.h": "c",
+        "gdt.h": "c"
+>>>>>>> 50997ada6bd66f3c0eda09a1b9ebdb2cc67bcfb2
     }
 }
