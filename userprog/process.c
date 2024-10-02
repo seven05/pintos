@@ -46,7 +46,10 @@ process_create_initd (const char *file_name) {
 
     char *save_ptr;
 	// printf("f_name1: %s\n" ,*(&file_name));
+<<<<<<< HEAD
 
+=======
+>>>>>>> a02e805d317649908c85abb61550e862493b5e3d
 	/* Make a copy of FILE_NAME.
 	 * Otherwise there's a race between the caller and load(). */
 	fn_copy = palloc_get_page (0);
@@ -59,7 +62,10 @@ process_create_initd (const char *file_name) {
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
 	// printf("tid = %d\n",tid);
+<<<<<<< HEAD
 
+=======
+>>>>>>> a02e805d317649908c85abb61550e862493b5e3d
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -68,6 +74,7 @@ process_create_initd (const char *file_name) {
 /* A thread function that launches first user process. */
 static void
 initd (void *f_name) {
+<<<<<<< HEAD
 
 	// printf("initd1\n");
 #ifdef VM
@@ -83,6 +90,18 @@ initd (void *f_name) {
 		PANIC("Fail to launch initd\n");
 	// printf("initd2\n");
 
+=======
+	// printf("imitd\n");
+#ifdef VM
+	supplemental_page_table_init (&thread_current ()->spt);
+#endif
+	// printf("imitd1\n");
+	process_init ();
+	// printf("imitd2\n");
+	if (process_exec (f_name) < 0)
+		PANIC("Fail to launch initd\n");
+	// printf("imitd3\n");
+>>>>>>> a02e805d317649908c85abb61550e862493b5e3d
 	NOT_REACHED ();
 }
 
@@ -369,10 +388,16 @@ load (const char *file_name, struct intr_frame *if_) {
     	args[arg_count++] = token;
     	token = strtok_r(NULL, " ", &save_ptr);
 	}
+<<<<<<< HEAD
 	for (int i = 0; i < arg_count; i++) {
     	// printf("Arg%d: %s\n", i, args[i]);
 	}
 
+=======
+	// for (int i = 0; i < arg_count; i++) {
+    // 	printf("Arg%d: %s\n", i, args[i]);
+	// }
+>>>>>>> a02e805d317649908c85abb61550e862493b5e3d
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
 	if (t->pml4 == NULL)
@@ -466,14 +491,19 @@ load (const char *file_name, struct intr_frame *if_) {
 		if_->rsp -= arg_len;
 		memcpy(if_->rsp,args[i],arg_len);
 		// printf("arg=%s rsp = %p\n" ,args[i], if_->rsp);
+<<<<<<< HEAD
 		// printf("stack arg=%s\n",*(&if_->rsp));
+=======
+		args[i] = if_->rsp;
+>>>>>>> a02e805d317649908c85abb61550e862493b5e3d
 	}
-	int mod = if_->rsp % 8;
-	if (mod != 0){
-		uint8_t word_align = 0;
+	int mod = if_->rsp % 8;  // 8바이트 정렬을 위해 나머지 계산
+	if (mod != 0) {
 		if_->rsp -= mod;
-		memcpy(if_->rsp,word_align,mod);
+		uint8_t word_align[8] = {0};  
+		memcpy(if_->rsp, word_align, mod);  
 	}
+<<<<<<< HEAD
 	// printf("align rsp %p\n", if_->rsp);
 	if_->rsp -= sizeof(char *);
 	memset(if_->rsp, 0, sizeof(char *));
@@ -487,6 +517,21 @@ load (const char *file_name, struct intr_frame *if_) {
 	memset(if_->rsp, 0, (void *));
 
 
+=======
+	// printf("after align rsp %p\n", if_->rsp);
+	if_->rsp -= sizeof(char *);  
+	memset(if_->rsp, 0, sizeof(char *));  
+	for (int i = arg_count - 1; i >= 0; i--) {
+		if_->rsp -= sizeof(char *);  
+		memcpy(if_->rsp, &args[i], sizeof(char *));  
+		// printf("argv[%d] = %p\n", i, *(char **)if_->rsp); 
+	}
+	char **argv = if_->rsp;  
+	if_->rsp -= sizeof(void *); 
+	memset(if_->rsp, 0, sizeof(void *));  
+	// printf("final rsp = %p\n", if_->rsp);
+	hex_dump((uintptr_t)if_->rsp, (void *)if_->rsp, USER_STACK - (uintptr_t)if_->rsp, true);
+>>>>>>> a02e805d317649908c85abb61550e862493b5e3d
 	success = true;
 
 done:
