@@ -104,12 +104,14 @@ struct thread {
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 
-	/* Owned by userprog/process.c. */
+
+// #ifdef USERPROG
 	uint64_t *pml4;                     /* Page map level 4 */
-	int fd_table[128];
+	struct file *fd_table[128];
 	int next_fd;
 #ifdef USERPROG
-	uint64_t *pml4;                     /* Page map level 4 */
+	/* Owned by userprog/process.c. */
+
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */

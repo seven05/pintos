@@ -1,5 +1,7 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
+#include <stdbool.h>
+typedef int pid_t;
 
 typedef int pid_t;
 #define bool	_Bool

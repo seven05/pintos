@@ -43,8 +43,9 @@ process_create_initd (const char *file_name) {
 	char *fn_copy;
 	tid_t tid;
 
-	// char *token;
-    // char *save_ptr;
+
+	char *token;
+    char *save_ptr;
 	// printf("f_name1: %s\n" ,*(&file_name));
 
 	/* Make a copy of FILE_NAME.
@@ -52,10 +53,12 @@ process_create_initd (const char *file_name) {
 	fn_copy = palloc_get_page (0);
 	if (fn_copy == NULL)
 		return TID_ERROR;
+
 	strlcpy (fn_copy, file_name, PGSIZE);
 
-	// token = strtok_r(file_name, " ", &save_ptr);	
+	token = strtok_r(file_name, " ", &save_ptr);
 	// printf("f_name2: %s\n" ,*(&file_name));
+	
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
 	// printf("tid = %d\n",tid);
@@ -228,7 +231,8 @@ process_wait (tid_t child_tid UNUSED) {
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
 
-	for(int i =0;i<1000000000 ;i++){};
+	// for(;;){};
+	for(int i=0; i<2000000000; i++){};
 
 	return -1;
 }
@@ -357,27 +361,24 @@ load (const char *file_name, struct intr_frame *if_) {
 	off_t file_ofs;
 	bool success = false;
 	int i;
-	// printf("f_name4: %s\n" ,*(&file_name));
+	
 	char *args[10];
-	int arg_count = 0;
+	int argc = 0;
 	char *token;
     char *save_ptr;
 	char fn_copy[128];
+
+	// 문자열 파싱
     strlcpy(fn_copy, file_name, sizeof(fn_copy));
-	token = strtok_r(fn_copy, " ", &save_ptr);
-	while (token != NULL) {
-    	args[arg_count++] = token;
-    	token = strtok_r(NULL, " ", &save_ptr);
-	}
-	for (int i = 0; i < arg_count; i++) {
-    	// printf("Arg%d: %s\n", i, args[i]);
+	for (char* token = strtok_r(fn_copy, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
+    	args[argc++] = token;
 	}
 
-	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
 	if (t->pml4 == NULL)
 		goto done;
 	process_activate (thread_current ());
+
 	/* Open executable file. */
 	file = filesys_open (args[0]);
 	if (file == NULL) {
@@ -460,35 +461,48 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
-	// printf("rsp = %p\n" , if_->rsp);
-	for(int i = arg_count-1 ; i>=0;i--){
+	for(int i = argc-1 ; i>=0;i--){
 		size_t arg_len = strlen(args[i]) + 1;
 		if_->rsp -= arg_len;
 		memcpy(if_->rsp,args[i],arg_len);
+
+		args[i] = if_->rsp;
 	}
 	int mod = if_->rsp % 8;
 	if (mod != 0){
 		uint8_t word_align = 0;
 		if_->rsp -= mod;
-		memcpy(if_->rsp,word_align,mod);
+
+		uint8_t word_align[8] = {0};
+		memcpy(if_->rsp, word_align, mod);
 	}
 	if_->rsp -= sizeof(char *);
 	memset(if_->rsp, 0, sizeof(char *));
-	for (int i = arg_count - 1; i >= 0; i--) {
+	for (int i = argc - 1; i >= 0; i--) {
 		if_->rsp -= sizeof(char *);
-		memcpy(if_->rsp, &args[i], sizeof(char *));
+		memcpy(if_->rsp, &args[i], sizeof(char *));  
 	}
+
+	// char **argv = (char **)if_->rsp;
 	char **argv = if_->rsp;
+	if_->rsp -= sizeof(uint64_t);
+	*(uint64_t *)if_->rsp = argv;
 
-	// argv 자체를 스택에 저장
-	if_->rsp -= sizeof(char **);            // 스택 공간 확보
-	memcpy(if_->rsp, &argv, sizeof(char **)); // argv 주소를 스택에 저장
+	if_->rsp -= sizeof(uint64_t);
+    *(uint64_t *)if_->rsp = argc;
+	// memset(if_->rsp, argc, sizeof(int));
 
+	if_->rsp -= sizeof(void *);
+    *(void **)if_->rsp = NULL;
+	// memset(if_->rsp, 0, sizeof(void *));
 
-	if_->rsp -=sizeof(void *);
-	memset(if_->rsp, 0, (void *));
+	if_->rsp = (uint64_t)if_->rsp;
+	printf("\n=======\n%p\n=======\n\n", if_->rsp);
+	
 
+	hex_dump((uintptr_t)if_->rsp, (void *)if_->rsp, USER_STACK - (uintptr_t)if_->rsp, true);
 	success = true;
+
 
 done:
 	/* We arrive here whether the load is successful or not. */

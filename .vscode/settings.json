@@ -10,7 +10,18 @@
 =======
         "syscall.h": "c",
         "string.h": "c",
+<<<<<<< HEAD
         "gdt.h": "c"
 >>>>>>> 50997ada6bd66f3c0eda09a1b9ebdb2cc67bcfb2
+=======
+        "gdt.h": "c",
+        "stdbool.h": "c",
+        "process.h": "c",
+        "file.h": "c",
+        "filesys.h": "c",
+        "palloc.h": "c",
+        "inttypes.h": "c",
+        "lib.h": "c"
+>>>>>>> 245672d3e8365aab26496da4642cabbae8c0e59a
     }
 }
