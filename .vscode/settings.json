@@ -21,7 +21,13 @@
         "filesys.h": "c",
         "palloc.h": "c",
         "inttypes.h": "c",
+<<<<<<< HEAD
         "lib.h": "c"
 >>>>>>> 245672d3e8365aab26496da4642cabbae8c0e59a
+=======
+        "lib.h": "c",
+        "synch.h": "c",
+        "stdio.h": "c"
+>>>>>>> 7683c02345990b76d4f0feea6bf38b69c550c79f
     }
 }

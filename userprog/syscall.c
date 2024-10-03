@@ -7,7 +7,6 @@
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
-#include "filesys/file.h"
 
 #include "userprog/process.h"
 #include "filesys/filesys.h"
@@ -54,17 +53,10 @@ struct file *get_file_by_descriptor(int fd);
  * The syscall instruction works by reading the values from the the Model
  * Specific Register (MSR). For the details, see the manual. */
 
-/* An open file. */
-struct file {
-	struct inode *inode;        /* File's inode. */
-	off_t pos;                  /* Current position. */
-	bool deny_write;            /* Has file_deny_write() been called? */
-};
-
 #define MSR_STAR 0xc0000081         /* Segment selector msr */
 #define MSR_LSTAR 0xc0000082        /* Long mode SYSCALL target */
 #define MSR_SYSCALL_MASK 0xc0000084 /* Mask for the eflags */
-#define FD_MAX 128
+
 void
 syscall_init (void) {
 	write_msr(MSR_STAR, ((uint64_t)SEL_UCSEG - 0x10) << 48  |
@@ -78,115 +70,11 @@ syscall_init (void) {
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
 }
 
-void halt (void) {
-	power_off();
-}
-void exit (int status) {
-	thread_exit();
-	return status
-}
-pid_t fork (const char *thread_name) {
-	// return thread_create (thread_name, PRI_DEFAULT, __do_fork, thread_current ());
-}
-int exec (const char *cmd_line) {
-
-	if (process_exec() < 0)
-		return -1;
-
-	
-}
-int wait (pid_t pid) {
-
-}
-bool create (const char *file, unsigned initial_size) {
-	return filesys_create(file, initial_size);
-}
-bool remove (const char *file) {
-	return filesys_remove(file);
-}
-int open (const char *file) {
-	struct thread *t = thread_current();
-	if (t->next_fd == FD_MAX) {
-		return -1;
-	}
-	t->fd_table[t->next_fd] = filesys_open(file);
-	int fd = t->next_fd;
-
-	for (int i = 3; i <FD_MAX ; i ++) {	//왜 3부터 시작인가?	//FD_MAX == 128
-		if (i == FD_MAX) {
-			t->next_fd = i;
-			return -1;
-		}
-		
-		if (t->fd_table[i] == NULL) {	//왜 NULL과 같을 때 실행되나?
-			t->next_fd = i;	
-		}
-	}
-
-	return fd;
-}
-int filesize (int fd) {
-	struct thread *t = thread_current();
-	struct file *file = t->fd_table[fd];
-	return file->inode->data.length;
-}
-int read (int fd, void *buffer, unsigned size) {
-
-}
-int write (int fd, const void *buffer, unsigned size)
-{	
-	printf("fd: %d, buffer: %s, size: %d\n",fd,(char *)buffer,size);
-	if (fd == 0){
-		return -1;
-	}
-	if (fd == 1){
-		putbuf(buffer, size);
-		return size;
-	}
-	if (fd == 2){
-		putbuf(buffer, size);
-		return size;
-	}
-	struct file *file = get_file_by_descriptor(fd);
-	if (file == NULL){
-		return -1;
-	}
-	int written = file_write(file, buffer, size);
-	file->pos += written;
-	return written;
-}
-
-struct file *get_file_by_descriptor(int fd)
-{
-	if (fd < 0 || fd > 128) return;
-	
-	struct thread *t = thread_current();
-
-	return t->fd_table[fd];
-}
-
-void seek (int fd, unsigned position) {
-
-}
-unsigned tell (int fd) {
-	struct thread *t = thread_current();
-	return t->fd_table[fd]->pos;
-}
-void close (int fd) {
-	struct thread *t = thread_current();
-	free(t->fd_table[fd]);	//왜 free를 하나? open해서 돌기 때문?
-	t->fd_table[fd] = NULL;
-	if (t->next_fd == 128) {
-		t->next_fd = fd;	
-	}
-}
-
 /* The main system call interface */
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
-
-	printf("\n------- syscall handler -------\n");
+	// printf("\n------- syscall handler -------\n");
 	uint64_t arg1 = f->R.rdi;
 	uint64_t arg2 = f->R.rsi;
 	uint64_t arg3 = f->R.rdx;
@@ -199,46 +87,46 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			// RPL(Requested Privilege Level) : cs의 하위 2비트
 			if ((f->cs & 0x3) != 0){}
 				// 권한 없음
-			printf("SYS_HALT\n");
+			// printf("SYS_HALT\n");
 			halt();
 		case SYS_EXIT:							//  1 프로세스 종료
-			printf("SYS_EXIT\n");
+			// printf("SYS_EXIT\n");
 			exit(arg1);
 			break;
 		case SYS_FORK:							//  2 프로세스 복제
-			printf("SYS_FORK\n");
+			// printf("SYS_FORK\n");
 			f->R.rax=fork(arg1);
 			break;
 		case SYS_EXEC:							//  3 새로운 프로그램 실행
-			printf("SYS_EXEC\n");
+			// printf("SYS_EXEC\n");
 			f->R.rax=exec(arg1);
 			break;
 		case SYS_WAIT:							//  4 자식 프로세스 대기
-			printf("SYS_WAIT\n");
+			// printf("SYS_WAIT\n");
 			f->R.rax=wait(arg1);
 			break;
 		case SYS_CREATE:						//  5 파일 생성
-			printf("SYS_CREATE\n");
+			// printf("SYS_CREATE\n");
 			f->R.rax=create(arg1,arg2);
 			break;
 		case SYS_REMOVE:						//  6 파일 삭제
-			printf("SYS_REMOVE\n");
+			// printf("SYS_REMOVE\n");
 			f->R.rax=remove(arg1);
 			break;
 		case SYS_OPEN:							//  7 파일 열기
-			printf("SYS_OPEN\n");
+			// printf("SYS_OPEN\n");
 			f->R.rax=open(arg1);
 			break;
 		case SYS_FILESIZE:						//  8 파일 크기 조회
-			printf("SYS_FILESIZE\n");
+			// printf("SYS_FILESIZE\n");
 			f->R.rax=filesize(arg1);
 			break;
 		case SYS_READ:							//  9 파일에서 읽기
-			printf("SYS_READ\n");
+			// printf("SYS_READ\n");
 			f->R.rax=read(arg1,arg2,arg3);
 			break;
 		case SYS_WRITE:							//  10 파일에 쓰기
-			printf("SYS_WRITE\n");
+			// printf("SYS_WRITE\n");
 			if (!user_memory_valid((void *)arg2)) {
 				f->R.rax = -1;
 				break;
@@ -246,22 +134,22 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			f->R.rax=write((int)arg1,(void *)arg2,(unsigned)arg3);
 			break;
 		case SYS_SEEK:							//  11 파일 내 위치 변경
-			printf("SYS_SEEK\n");
+			// printf("SYS_SEEK\n");
 			seek(arg1,arg2);
 			break;
 		case SYS_TELL:							//  12 파일의 현재 위치 반환
-			printf("SYS_TELL\n");
+			// printf("SYS_TELL\n");
 			f->R.rax=tell(arg1);
 			break;
 		case SYS_CLOSE:							//  13 파일 닫기
-			printf("SYS_CLOSE\n");
+			// printf("SYS_CLOSE\n");
 			close(arg1);
 			break;
 		default:
-			printf("default;\n");
+			// printf("default;\n");
 			break;
 	}
-	printf("-------------------------------\n\n");
+	// printf("-------------------------------\n\n");
 }
 
 void halt (void){
@@ -269,6 +157,9 @@ void halt (void){
 }
 
 void exit (int status){
+	struct thread *t = thread_current();
+	// args-single: exit(0)
+	printf("%s: exit(%d)\n", t->name, status);
 	thread_exit();
 }
 
@@ -377,7 +268,6 @@ bool user_memory_valid(void *r){
 	}
 	return false;
 }
-
 
 struct file *get_file_by_descriptor(int fd)
 {
