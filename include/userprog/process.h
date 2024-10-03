@@ -11,4 +11,6 @@ void process_exit (void);
 void process_activate (struct thread *next);
 static void __do_fork (void *);
 
+void __do_fork (void *);
+
 #endif /* userprog/process.h */

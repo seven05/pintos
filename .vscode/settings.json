@@ -27,7 +27,16 @@
 =======
         "lib.h": "c",
         "synch.h": "c",
+<<<<<<< HEAD
         "stdio.h": "c"
 >>>>>>> 7683c02345990b76d4f0feea6bf38b69c550c79f
+=======
+        "stdio.h": "c",
+        "*.inc": "c",
+        "thread.h": "c",
+        "mmu.h": "c",
+        "vaddr.h": "c",
+        "off_t.h": "c"
+>>>>>>> f952ad545fa7cd18fc479c80ab1997ce80ef4f47
     }
 }

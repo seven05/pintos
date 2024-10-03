@@ -42,7 +42,7 @@ struct inode {
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
-bool user_memory_valid(void *r);
+void user_memory_valid(void *r);
 struct file *get_file_by_descriptor(int fd);
 
 /* System call.
@@ -108,14 +108,17 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			break;
 		case SYS_CREATE:						//  5 파일 생성
 			// printf("SYS_CREATE\n");
+			user_memory_valid((void *)arg1);
 			f->R.rax=create(arg1,arg2);
 			break;
 		case SYS_REMOVE:						//  6 파일 삭제
 			// printf("SYS_REMOVE\n");
+			user_memory_valid((void *)arg1);
 			f->R.rax=remove(arg1);
 			break;
 		case SYS_OPEN:							//  7 파일 열기
 			// printf("SYS_OPEN\n");
+			user_memory_valid((void *)arg1);
 			f->R.rax=open(arg1);
 			break;
 		case SYS_FILESIZE:						//  8 파일 크기 조회
@@ -124,14 +127,12 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			break;
 		case SYS_READ:							//  9 파일에서 읽기
 			// printf("SYS_READ\n");
+			user_memory_valid((void *)arg2);
 			f->R.rax=read(arg1,arg2,arg3);
 			break;
 		case SYS_WRITE:							//  10 파일에 쓰기
 			// printf("SYS_WRITE\n");
-			if (!user_memory_valid((void *)arg2)) {
-				f->R.rax = -1;
-				break;
-			}
+			user_memory_valid((void *)arg2);
 			f->R.rax=write((int)arg1,(void *)arg2,(unsigned)arg3);
 			break;
 		case SYS_SEEK:							//  11 파일 내 위치 변경
@@ -165,8 +166,8 @@ void exit (int status){
 }
 
 pid_t fork (const char *thread_name){
-	tid_t tid = thread_create(thread_name, PRI_DEFAULT, __do_fork, thread_current());
-	// return thread_create (thread_name, PRI_DEFAULT, __do_fork, thread_current ());
+
+	tid_t tid = thread_create (thread_name, PRI_DEFAULT, __do_fork, thread_current ());
 }
 
 int exec (const char *cmd_line){
@@ -194,7 +195,9 @@ int open (const char *file){
 	if (t->next_fd == FD_MAX) {
 		return -1;
 	}
-	t->fd_table[t->next_fd] = filesys_open(file);
+	if((t->fd_table[t->next_fd] = filesys_open(file)) == NULL) {
+		return -1;
+	}
 	int fd = t->next_fd;
 
 	// next_fd 갱신
@@ -249,12 +252,9 @@ int write (int fd, const void *buffer, unsigned size){
 }
 
 void seek (int fd, unsigned position){
-	struct file *file = get_file_by_descriptor(fd);
-	if (file == NULL) {
-		return;
-	}
 
-	file_seek(file, file->pos);
+	file_seek(get_file_by_descriptor(fd), position);
+
 }
 
 unsigned tell (int fd){
@@ -264,6 +264,9 @@ unsigned tell (int fd){
 
 void close (int fd){
 	struct thread *t = thread_current();
+	if (get_file_by_descriptor(fd) == NULL) {
+		exit(-1);
+	}
 	free(t->fd_table[fd]);
 	t->fd_table[fd] = NULL;
 	if (t->next_fd == 128) {
@@ -272,18 +275,18 @@ void close (int fd){
 }
 
 
-bool user_memory_valid(void *r){
+void user_memory_valid(void *r){
 	struct thread *current = thread_current();  
     uint64_t *pml4 = current->pml4;
-	if (r != NULL && is_user_vaddr(r) && pml4_get_page(pml4,r) != NULL){
-		return true;
+	if (r == NULL || is_kernel_vaddr(r) || pml4_get_page(pml4,r) == NULL){
+		exit(-1);
 	}
-	return false;
 }
 
 struct file *get_file_by_descriptor(int fd)
 {
-	if (fd < 3 || fd > 128) return;
+
+	if (fd < 3 || fd > 128) return NULL;
 	
 	struct thread *t = thread_current();
 
