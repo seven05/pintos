@@ -162,6 +162,7 @@ thread_tick (void) {
 #ifdef USERPROG
 	else if (t->pml4 != NULL)
 		user_ticks++;
+		
 #endif
 	else
 		kernel_ticks++;
@@ -482,6 +483,15 @@ init_thread (struct thread *t, const char *name, int priority) {
 
 	t->nice = 0;
 	t->recent_cpu = 0;
+
+	t->fd_table[0] = (struct file *) 1; 
+    t->fd_table[1] = (struct file *) 2;
+    t->fd_table[2] = (struct file *) 3;
+	
+	for (int i = 3; i < 128; i ++) {
+		t->fd_table[i] = NULL;
+	}
+	t->next_fd = 3;
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -721,25 +731,14 @@ bool donate_high_priority (const struct list_elem *a, const struct list_elem *b,
 }
 
 void refresh_priority() {
-<<<<<<< HEAD
-    // for (struct thread *t = thread_current(); t; t = t->wait_on_lock ? t->wait_on_lock->holder : NULL) {
-        struct thread *t = thread_current();
-		t->priority = t->ori_priority;
-        if (!list_empty(&t->donations)) {
-            struct thread *don_front = list_entry(list_max(&t->donations, donate_high_priority, NULL), struct thread, donation_elem);
-            if (t->priority < don_front->priority) {
-                t->priority = don_front->priority;
-            }
-=======
     struct thread *t = thread_current();
     t->priority = t->ori_priority;
     if (!list_empty(&t->donations)) {
         struct thread *don_front = list_entry(list_max(&t->donations, donate_high_priority, NULL), struct thread, donation_elem);
         if (t->priority < don_front->priority) {
             t->priority = don_front->priority;
->>>>>>> 50997ada6bd66f3c0eda09a1b9ebdb2cc67bcfb2
         }
-    // }
+    }
 }
 
 void remove_with_lock(struct lock *lock) {
@@ -808,19 +807,11 @@ void mlfqs_recalculate_recent_cpu() {
 }
 
 void mlfqs_incr(){
-<<<<<<< HEAD
-    struct thread *t = thread_current();
-    if (t == idle_thread){
-        return;
-    }
-    int curr_recent_cpu = t->recent_cpu;
-    t->recent_cpu = add_mixed(curr_recent_cpu,1);
-=======
+
 	struct thread *t = thread_current();
 	if (t == idle_thread){
 		return;
 	}
 	int curr_recent_cpu = t->recent_cpu;
 	t->recent_cpu = add_mixed(curr_recent_cpu,1);
->>>>>>> 50997ada6bd66f3c0eda09a1b9ebdb2cc67bcfb2
 }

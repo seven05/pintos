@@ -151,7 +151,7 @@ __do_fork (void *aux) {
 	current->pml4 = pml4_create();
 	if (current->pml4 == NULL)
 		goto error;
-
+ 
 	process_activate (current);
 #ifdef VM
 	supplemental_page_table_init (&current->spt);
@@ -465,8 +465,6 @@ load (const char *file_name, struct intr_frame *if_) {
 		size_t arg_len = strlen(args[i]) + 1;
 		if_->rsp -= arg_len;
 		memcpy(if_->rsp,args[i],arg_len);
-		// printf("arg=%s rsp = %p\n" ,args[i], if_->rsp);
-		// printf("stack arg=%s\n",*(&if_->rsp));
 	}
 	int mod = if_->rsp % 8;
 	if (mod != 0){
@@ -474,15 +472,19 @@ load (const char *file_name, struct intr_frame *if_) {
 		if_->rsp -= mod;
 		memcpy(if_->rsp,word_align,mod);
 	}
-	// printf("align rsp %p\n", if_->rsp);
 	if_->rsp -= sizeof(char *);
 	memset(if_->rsp, 0, sizeof(char *));
 	for (int i = arg_count - 1; i >= 0; i--) {
 		if_->rsp -= sizeof(char *);
 		memcpy(if_->rsp, &args[i], sizeof(char *));
-		// printf("argv[%d], %p\n",i, *(char **)if_->rsp);
 	}
 	char **argv = if_->rsp;
+
+	// argv 자체를 스택에 저장
+	if_->rsp -= sizeof(char **);            // 스택 공간 확보
+	memcpy(if_->rsp, &argv, sizeof(char **)); // argv 주소를 스택에 저장
+
+
 	if_->rsp -=sizeof(void *);
 	memset(if_->rsp, 0, (void *));
 
