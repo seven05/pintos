@@ -38,14 +38,13 @@ process_init (void) {
 
 /* Starts the first userland program, called "initd", loaded from FILE_NAME.
  * The new thread may be scheduled (and may even exit)
- * before () returns. Returns the initd's
+ * before process_create_initd() returns. Returns the initd's
  * thread id, or TID_ERROR if the thread cannot be created.
  * Notice that THIS SHOULD BE CALLED ONCE. */
 tid_t
 process_create_initd (const char *file_name) {
 	char *fn_copy;
 	tid_t tid;
-
 
 	char *token;
     char *save_ptr;
@@ -58,14 +57,12 @@ process_create_initd (const char *file_name) {
 		return TID_ERROR;
 
 	strlcpy (fn_copy, file_name, PGSIZE);
-
 	token = strtok_r(file_name, " ", &save_ptr);
 	// printf("f_name2: %s\n" ,*(&file_name));
 	
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
 	// printf("tid = %d\n",tid);
-
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -74,21 +71,16 @@ process_create_initd (const char *file_name) {
 /* A thread function that launches first user process. */
 static void
 initd (void *f_name) {
-
-	// printf("initd1\n");
+	// printf("imitd\n");
 #ifdef VM
 	supplemental_page_table_init (&thread_current ()->spt);
 #endif
-
-	// printf("initd2\n");
+	// printf("imitd1\n");
 	process_init ();
-	// printf("initd2\n");
-
-
+	// printf("imitd2\n");
 	if (process_exec (f_name) < 0)
 		PANIC("Fail to launch initd\n");
-	// printf("initd2\n");
-
+	// printf("imitd3\n");
 	NOT_REACHED ();
 }
 
@@ -97,7 +89,6 @@ initd (void *f_name) {
 tid_t
 process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	/* Clone current thread to new thread.*/
-	// printf("process_fork\n");
 	return thread_create (name,
 			PRI_DEFAULT, __do_fork, thread_current ());
 }
@@ -112,8 +103,6 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	void *parent_page;
 	void *newpage;
 	bool writable;
-
-	// printf("duplicate_pte\n");
 
 	/* 1. TODO: If the parent_page is kernel page, then return immediately. */
 
@@ -141,15 +130,14 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
  *       That is, you are required to pass second argument of process_fork to
  *       this function. */
 static void
-__do_fork (void *aux) {
+__do_fork (void *aux) {		//자식 프로세스가 do_fork를 실행시킴
 	struct intr_frame if_;
 	struct thread *parent = (struct thread *) aux;
 	struct thread *current = thread_current ();
 	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-	struct intr_frame *parent_if;
+	struct intr_frame *parent_if = &parent->tf;
 	bool succ = true;
 
-	// printf("do_fork\n");
 	/* 1. Read the cpu context to local stack. */
 	memcpy (&if_, parent_if, sizeof (struct intr_frame));
 
@@ -157,7 +145,7 @@ __do_fork (void *aux) {
 	current->pml4 = pml4_create();
 	if (current->pml4 == NULL)
 		goto error;
- 
+
 	process_activate (current);
 #ifdef VM
 	supplemental_page_table_init (&current->spt);
@@ -173,6 +161,9 @@ __do_fork (void *aux) {
 	 * TODO:       in include/filesys/file.h. Note that parent should not return
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
+	for (int i = 3; i < 128; i ++ ) {
+		current->fd_table[i] = file_duplicate(parent->fd_table[i]);
+	}
 
 	process_init ();
 
@@ -232,9 +223,8 @@ int
 process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
-	 * XXX:       implementing the process_wait. */ 
+	 * XXX:       implementing the process_wait. */
 	// for(;;){};
-
 	for(int i=0; i<2000000000; i++){};
 	// sema_init(sema, 0);
 	// sema_down(sema);
@@ -245,7 +235,6 @@ process_wait (tid_t child_tid UNUSED) {
 void
 process_exit (void) {
 	struct thread *curr = thread_current ();
-	// printf("process_exit\n");
 	/* TODO: Your code goes here.
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
@@ -257,9 +246,7 @@ process_exit (void) {
 /* Free the current process's resources. */
 static void
 process_cleanup (void) {
-	// printf("create_initd\n" );
 	struct thread *curr = thread_current ();
-
 
 #ifdef VM
 	supplemental_page_table_kill (&curr->spt);
@@ -377,7 +364,7 @@ load (const char *file_name, struct intr_frame *if_) {
 	for (char* token = strtok_r(fn_copy, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
     	args[argc++] = token;
 	}
-
+	
 	t->pml4 = pml4_create ();
 	if (t->pml4 == NULL)
 		goto done;
@@ -386,7 +373,7 @@ load (const char *file_name, struct intr_frame *if_) {
 	/* Open executable file. */
 	file = filesys_open (args[0]);
 	if (file == NULL) {
-		// printf ("load: %s: open failed\n", args[0]);
+		printf ("load: %s: open failed\n", args[0]);
 		goto done;
 	}
 
@@ -398,12 +385,11 @@ load (const char *file_name, struct intr_frame *if_) {
 			|| ehdr.e_version != 1
 			|| ehdr.e_phentsize != sizeof (struct Phdr)
 			|| ehdr.e_phnum > 1024) {
-		// printf ("load: %s: error loading executable\n", file_name);
+		printf ("load: %s: error loading executable\n", file_name);
 		goto done;
 	}
 
-	/* Read program headers. 
-	*/
+	/* Read program headers. */
 	file_ofs = ehdr.e_phoff;
 	for (i = 0; i < ehdr.e_phnum; i++) {
 		struct Phdr phdr;
@@ -469,14 +455,11 @@ load (const char *file_name, struct intr_frame *if_) {
 		size_t arg_len = strlen(args[i]) + 1;
 		if_->rsp -= arg_len;
 		memcpy(if_->rsp,args[i],arg_len);
-
 		args[i] = if_->rsp;
 	}
-	int mod = if_->rsp % 8;
-	if (mod != 0){
-		uint8_t word_align = 0;
+	int mod = if_->rsp % 8;  // 8바이트 정렬을 위해 나머지 계산
+	if (mod != 0) {
 		if_->rsp -= mod;
-
 		uint8_t word_align[8] = {0};
 		memcpy(if_->rsp, word_align, mod);
 	}

@@ -7,6 +7,7 @@
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
+#include "userprog/process.h" 
 
 #include "userprog/process.h"
 #include "filesys/filesys.h"
@@ -164,6 +165,7 @@ void exit (int status){
 }
 
 pid_t fork (const char *thread_name){
+	tid_t tid = thread_create(thread_name, PRI_DEFAULT, __do_fork, thread_current());
 	// return thread_create (thread_name, PRI_DEFAULT, __do_fork, thread_current ());
 }
 
@@ -217,7 +219,12 @@ int filesize (int fd){
 }
 
 int read (int fd, void *buffer, unsigned size){
+	struct file *file = get_file_by_descriptor(fd);
+	if (file == NULL) {
+		return -1;
+	}
 
+	return file_read(file, buffer, size);
 }
 
 int write (int fd, const void *buffer, unsigned size){
@@ -242,7 +249,12 @@ int write (int fd, const void *buffer, unsigned size){
 }
 
 void seek (int fd, unsigned position){
+	struct file *file = get_file_by_descriptor(fd);
+	if (file == NULL) {
+		return;
+	}
 
+	file_seek(file, file->pos);
 }
 
 unsigned tell (int fd){
@@ -271,7 +283,7 @@ bool user_memory_valid(void *r){
 
 struct file *get_file_by_descriptor(int fd)
 {
-	if (fd < 0 || fd > 128) return;
+	if (fd < 3 || fd > 128) return;
 	
 	struct thread *t = thread_current();
 
