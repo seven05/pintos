@@ -121,6 +121,8 @@ struct thread {
 	struct list children;
 	struct list_elem child_elem;
 	int process_status;
+	int stdin_count;
+    int stdout_count;
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 #endif	
