@@ -306,7 +306,7 @@ struct file *get_file_by_descriptor(int fd)
 	struct thread *t = thread_current();
 
 	return t->fd_table[fd];
-}
+} 
 
 void check_address(const void *addr) {
     // addr가 NULL이거나, 유저 공간에 있지 않다면
