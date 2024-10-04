@@ -1,6 +1,7 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 #include <stdbool.h>
+#include "threads/thread.h"
 typedef int pid_t;
 
 typedef int pid_t;
@@ -10,7 +11,7 @@ void syscall_init (void);
 
 void halt (void);
 void exit (int status);
-pid_t fork (const char *thread_name);
+tid_t fork(const char *thread_name);
 int exec (const char *cmd_line);
 int wait (pid_t pid);
 bool create (const char *file, unsigned initial_size);

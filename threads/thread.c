@@ -162,7 +162,6 @@ thread_tick (void) {
 #ifdef USERPROG
 	else if (t->pml4 != NULL)
 		user_ticks++;
-		
 #endif
 	else
 		kernel_ticks++;
@@ -228,6 +227,8 @@ thread_create (const char *name, int priority,
 	{
 		t->recent_cpu = thread_current()->recent_cpu;
 	}
+
+	list_push_back(&thread_current()->children, &t->child_elem);
 	
 	/* Add to run queue. */
 	thread_unblock (t);
@@ -480,10 +481,14 @@ init_thread (struct thread *t, const char *name, int priority) {
 
 	t->ori_priority = priority;
 	list_init(&t->donations);
+	list_init(&t->children);
+	list_init(&(t->children));
+	sema_init(&t->load_sema, 0);
+	sema_init(&t->exit_sema, 0);
+    sema_init(&t->wait_sema, 0);
 
 	t->nice = 0;
 	t->recent_cpu = 0;
-
 
 // #ifdef USERPROG
 	// 0, 1, 2 더미데이터
@@ -494,6 +499,9 @@ init_thread (struct thread *t, const char *name, int priority) {
     	t->fd_table[i] = NULL;
 	}
 	t->next_fd = 3;
+	t->exit_status = 0; 
+
+
 #ifdef USERPROG
 #endif
 }
@@ -811,11 +819,29 @@ void mlfqs_recalculate_recent_cpu() {
 }
 
 void mlfqs_incr(){
-
 	struct thread *t = thread_current();
 	if (t == idle_thread){
 		return;
 	}
 	int curr_recent_cpu = t->recent_cpu;
 	t->recent_cpu = add_mixed(curr_recent_cpu,1);
+}
+
+struct thread *get_thread_by_tid(tid_t tid, struct thread *parent) {
+	for (struct list_elem *e = list_begin(&parent->children); e != list_end(&parent->children); e = list_next(e)) {
+        struct thread *child = list_entry(e, struct thread, child_elem);
+        if (child->tid == tid) {
+            return child;  // 자식 프로세스를 찾음
+        }
+    }
+	return NULL;
+
+    // struct list_elem *e;
+    // for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
+    //     struct thread *t = list_entry(e, struct thread, all_elem);
+    //     if (t->tid == tid) {
+    //         return t;
+    //     }
+    // }
+    // return NULL;
 }

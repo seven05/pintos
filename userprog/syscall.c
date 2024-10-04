@@ -7,12 +7,12 @@
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
-#include "userprog/process.h" 
 
 #include "userprog/process.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "threads/palloc.h"
+#include "threads/thread.h"
 
 #define FD_MAX 128
 
@@ -44,6 +44,7 @@ void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 void user_memory_valid(void *r);
 struct file *get_file_by_descriptor(int fd);
+void check_address(const void *addr);
 
 /* System call.
  *
@@ -96,7 +97,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			break;
 		case SYS_FORK:							//  2 프로세스 복제
 			// printf("SYS_FORK\n");
-			f->R.rax=fork(arg1);
+			f->R.rax=fork((char *)arg1);
 			break;
 		case SYS_EXEC:							//  3 새로운 프로그램 실행
 			// printf("SYS_EXEC\n");
@@ -104,7 +105,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			break;
 		case SYS_WAIT:							//  4 자식 프로세스 대기
 			// printf("SYS_WAIT\n");
-			f->R.rax=wait(arg1);
+			f->R.rax=wait(f->R.rdi);
 			break;
 		case SYS_CREATE:						//  5 파일 생성
 			// printf("SYS_CREATE\n");
@@ -165,21 +166,27 @@ void exit (int status){
 	thread_exit();
 }
 
-pid_t fork (const char *thread_name){
-
-	tid_t tid = thread_create (thread_name, PRI_DEFAULT, __do_fork, thread_current ());
+tid_t fork(const char *thread_name)
+{
+	struct thread *t = thread_current();
+    return process_fork(thread_name, &t->tf);
 }
 
 int exec (const char *cmd_line){
-	
-	palloc_get_page(PAL_USER);
-	if (process_exec (cmd_line) < 0)
-		return -1;
-	NOT_REACHED ();
+    check_address(cmd_line);
+
+	char *cmd_line_copy;
+	cmd_line_copy = palloc_get_page(0);
+	if (cmd_line_copy == NULL)
+    	exit(-1);                              
+	strlcpy(cmd_line_copy, cmd_line, PGSIZE); 
+
+	if (process_exec(cmd_line_copy) == -1)
+    	exit(-1); 
 }
 
 int wait (pid_t pid){
-
+	return process_wait(pid);
 }
 
 bool create (const char *file, unsigned initial_size){
@@ -226,7 +233,6 @@ int read (int fd, void *buffer, unsigned size){
 	if (file == NULL) {
 		return -1;
 	}
-
 	return file_read(file, buffer, size);
 }
 
@@ -252,9 +258,7 @@ int write (int fd, const void *buffer, unsigned size){
 }
 
 void seek (int fd, unsigned position){
-
 	file_seek(get_file_by_descriptor(fd), position);
-
 }
 
 unsigned tell (int fd){
@@ -285,10 +289,21 @@ void user_memory_valid(void *r){
 
 struct file *get_file_by_descriptor(int fd)
 {
-
 	if (fd < 3 || fd > 128) return NULL;
 	
 	struct thread *t = thread_current();
 
 	return t->fd_table[fd];
+}
+
+void check_address(const void *addr) {
+    // addr가 NULL이거나, 유저 공간에 있지 않다면
+    if (addr == NULL || !is_user_vaddr(addr)) {
+        exit(-1);  // 유효하지 않은 주소라면 프로그램을 종료
+    }
+
+    // 해당 주소가 매핑되어 있지 않다면
+    if (pml4_get_page(thread_current()->pml4, addr) == NULL) {
+        exit(-1);  // 매핑되지 않은 주소라면 프로그램을 종료
+    }
 }

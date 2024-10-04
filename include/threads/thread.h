@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/synch.h"
 #include "threads/interrupt.h"
 #ifdef VM
 #include "vm/vm.h"
@@ -104,15 +105,21 @@ struct thread {
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 
-
 // #ifdef USERPROG
-	uint64_t *pml4;                     /* Page map level 4 */
-	struct file *fd_table[128];
-	int next_fd;
+uint64_t *pml4;                     /* Page map level 4 (페이지 테이블) */
+struct file *fd_table[128];          /* 파일 디스크립터 테이블 (128개의 파일 디스크립터 공간) */
+int next_fd;                         /* 다음 파일 디스크립터 인덱스 */
+struct list children;                /* 자식 프로세스 리스트 */
+struct intr_frame parent_if;         /* 부모 프로세스의 인터럽트 프레임 */
+struct list_elem child_elem;         /* 부모의 자식 리스트에 연결될 리스트 요소 */
+struct semaphore wait_sema;          /* 자식이 종료될 때까지 부모가 기다리는 세마포어 */
+struct semaphore exit_sema;          /* 자식이 종료될 때 부모에게 알려주는 세마포어 */
+struct semaphore load_sema;          /* 자식이 로딩될 때까지 부모가 기다리는 세마포어 */
+struct file *running;     
+int exit_status;
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
-
-#endif
+#endif	
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
 	struct supplemental_page_table spt;
@@ -131,7 +138,7 @@ struct sleeping_thread {
 
 void check_priority();
 void print_ready_list(void);
-
+static struct list ready_list;
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -166,5 +173,4 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
-
 #endif /* threads/thread.h */
