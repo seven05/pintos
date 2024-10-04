@@ -130,7 +130,7 @@ thread_init (void) {
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
 	init_thread (initial_thread, "main", PRI_DEFAULT);
-
+	
 	if (thread_mlfqs)
 		list_push_back(&all_list, &(initial_thread->all_elem));
 	initial_thread->status = THREAD_RUNNING;
@@ -225,6 +225,9 @@ thread_create (const char *name, int priority,
 	t->tf.eflags = FLAG_IF;
 	if (strcmp(name, "idle") != 0)
 	{
+// #ifdef USERPROG
+		list_push_back(&thread_current()->children, &t->child_elem);
+// #endif
 		t->recent_cpu = thread_current()->recent_cpu;
 	}
 
@@ -483,25 +486,21 @@ init_thread (struct thread *t, const char *name, int priority) {
 	list_init(&t->donations);
 	list_init(&t->children);
 	list_init(&(t->children));
-	sema_init(&t->load_sema, 0);
-	sema_init(&t->exit_sema, 0);
-    sema_init(&t->wait_sema, 0);
+	sema_init(&t->fork_sema, 0);
+	sema_init(&t->wait_sema, 0);
+    sema_init(&t->free_sema, 0);
 
 	t->nice = 0;
 	t->recent_cpu = 0;
 
 // #ifdef USERPROG
-	// 0, 1, 2 더미데이터
-	t->fd_table[0] = (struct file *) 1; 
-    t->fd_table[1] = (struct file *) 2;
-    t->fd_table[2] = (struct file *) 3;
-	for (int i = 3; i < 128; i++) {
-    	t->fd_table[i] = NULL;
-	}
+
 	t->next_fd = 3;
-	t->exit_status = 0; 
-
-
+	sema_init(&t->fork_sema, 0);
+	sema_init(&t->wait_sema, 0);
+	sema_init(&t->free_sema, 0);
+	list_init(&t->children);
+	t->process_status = 0;
 #ifdef USERPROG
 #endif
 }
@@ -827,7 +826,10 @@ void mlfqs_incr(){
 	t->recent_cpu = add_mixed(curr_recent_cpu,1);
 }
 
-struct thread *get_thread_by_tid(tid_t tid, struct thread *parent) {
+struct thread *get_thread_by_tid(tid_t tid) {
+	struct thread *parent = thread_current();
+	
+
 	for (struct list_elem *e = list_begin(&parent->children); e != list_end(&parent->children); e = list_next(e)) {
         struct thread *child = list_entry(e, struct thread, child_elem);
         if (child->tid == tid) {

@@ -14,7 +14,8 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 
-#define FD_MAX 128
+#include "threads/synch.h"
+#include <string.h>
 
 typedef uint32_t disk_sector_t;
 
@@ -59,6 +60,8 @@ void check_address(const void *addr);
 #define MSR_LSTAR 0xc0000082        /* Long mode SYSCALL target */
 #define MSR_SYSCALL_MASK 0xc0000084 /* Mask for the eflags */
 
+struct lock syscall_lock;
+
 void
 syscall_init (void) {
 	write_msr(MSR_STAR, ((uint64_t)SEL_UCSEG - 0x10) << 48  |
@@ -70,6 +73,8 @@ syscall_init (void) {
 	 * mode stack. Therefore, we masked the FLAG_FL. */
 	write_msr(MSR_SYSCALL_MASK,
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
+
+	lock_init(&syscall_lock);
 }
 
 /* The main system call interface */
@@ -101,6 +106,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			break;
 		case SYS_EXEC:							//  3 새로운 프로그램 실행
 			// printf("SYS_EXEC\n");
+			user_memory_valid((void *)arg1);
 			f->R.rax=exec(arg1);
 			break;
 		case SYS_WAIT:							//  4 자식 프로세스 대기
@@ -164,6 +170,7 @@ void exit (int status){
 	// args-single: exit(0)
 	printf("%s: exit(%d)\n", t->name, status);
 	thread_exit();
+	sema_up(&t->wait_sema);
 }
 
 tid_t fork(const char *thread_name)
@@ -173,16 +180,15 @@ tid_t fork(const char *thread_name)
 }
 
 int exec (const char *cmd_line){
-    check_address(cmd_line);
 
-	char *cmd_line_copy;
-	cmd_line_copy = palloc_get_page(0);
-	if (cmd_line_copy == NULL)
-    	exit(-1);                              
-	strlcpy(cmd_line_copy, cmd_line, PGSIZE); 
-
-	if (process_exec(cmd_line_copy) == -1)
-    	exit(-1); 
+	char *c = palloc_get_page(0);
+	if (c == NULL) {
+		exit(-1);
+	}
+	strlcpy(c, cmd_line, PGSIZE);
+	if (process_exec (c) < 0) {
+		exit(-1);
+	}
 }
 
 int wait (pid_t pid){
@@ -229,14 +235,19 @@ int filesize (int fd){
 }
 
 int read (int fd, void *buffer, unsigned size){
+	// printf("\n============\n read buffer : %s \n============\n\n", buffer);
 	struct file *file = get_file_by_descriptor(fd);
 	if (file == NULL) {
 		return -1;
 	}
-	return file_read(file, buffer, size);
+	lock_acquire(&syscall_lock);
+	int fr = file_read(file, buffer, size);
+	lock_release(&syscall_lock);
+	return fr;
 }
 
 int write (int fd, const void *buffer, unsigned size){
+	// printf("\n============\n write buffer : %s \n============\n\n", buffer);
 	if (fd == 0){		// Standard Input
 		return -1;
 	}
@@ -252,8 +263,9 @@ int write (int fd, const void *buffer, unsigned size){
 	if (file == NULL){
 		return -1;
 	}
+	lock_acquire(&syscall_lock);
 	int written = file_write(file, buffer, size);
-	file->pos += written;
+	lock_release(&syscall_lock);
 	return written;
 }
 
@@ -269,11 +281,11 @@ unsigned tell (int fd){
 void close (int fd){
 	struct thread *t = thread_current();
 	if (get_file_by_descriptor(fd) == NULL) {
-		exit(-1);
+		return;
 	}
-	free(t->fd_table[fd]);
+	file_close(t->fd_table[fd]);
 	t->fd_table[fd] = NULL;
-	if (t->next_fd == 128) {
+	if (t->next_fd == FD_MAX) {
 		t->next_fd = fd;
 	}
 }
