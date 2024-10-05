@@ -93,36 +93,36 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	/* Clone current thread to new thread.*/
 	struct thread *parent = thread_current();
 	struct intr_frame *f = (pg_round_up(rrsp()) - sizeof(struct intr_frame));  // 현재 쓰레드의 if_는 페이지 마지막에 붙어있다.
-	memcpy(&parent->parent_tf, f, sizeof(struct intr_frame));
+	memcpy(&parent->parent_tf, f, sizeof(struct intr_frame)); //parent tf가 뭐지?
 
-	tid_t child_tid = thread_create(name, PRI_DEFAULT, __do_fork, (void *)parent);
-	if (child_tid == TID_ERROR) {
+	tid_t child_tid = thread_create(name, PRI_DEFAULT, __do_fork, (void *)parent);	//__do_fork에 parent를 넣는건가? child_tid에는 어떤 값이 담기는거지?
+	if (child_tid == TID_ERROR) {	//child_tid가 할당받지 못했으면 에러 반환
 		return TID_ERROR;
 	}
 
-	struct thread *child = get_thread_by_tid(child_tid);
+	struct thread *child = get_thread_by_tid(child_tid);	//children 리스트에서 child 스레드를 찾아줌
 	if (child == NULL) {
 		return TID_ERROR;
 	}
 
-	sema_down(&child->fork_sema);
+	sema_down(&child->fork_sema);		//child 스레드를 세마 다운 시킴. 그럼 parent가 대기상태가 되나?
 
-	if (child->process_status == PROCESS_ERR) {
+	if (child->process_status == PROCESS_ERR) {	//child의 실행상태가 에러상태면 에러 반환
 		return TID_ERROR;
 	}
 
-	return child_tid;
+	return child_tid;	//child쓰레드의 identifier을 반환
 }
 
 #ifndef VM
 /* Duplicate the parent's address space by passing this function to the
  * pml4_for_each. This is only for the project 2. */
 static bool
-duplicate_pte (uint64_t *pte, void *va, void *aux) {
+duplicate_pte (uint64_t *pte, void *va, void *aux) {	//부모 쓰레드의 pte를 자식 쓰레드의 pte에 복사
 	struct thread *current = thread_current ();
 	struct thread *parent = (struct thread *) aux;
 	void *parent_page;
-	void *newpage;
+	void *child_page;
 	bool writable;
 
 	/* 1. TODO: If the parent_page is kernel page, then return immediately. */
@@ -137,21 +137,21 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 
 	/* 3. TODO: Allocate new PAL_USER page for the child and set result to
 	 *    TODO: NEWPAGE. */
-	if ((newpage = palloc_get_page(PAL_USER | PAL_ZERO)) == NULL) {
+	if ((child_page = palloc_get_page(PAL_USER | PAL_ZERO)) == NULL) {
 		return false;
 	}
 
 	/* 4. TODO: Duplicate parent's page to the new page and
 	 *    TODO: check whether parent's page is writable or not (set WRITABLE
 	 *    TODO: according to the result). */
-	memcpy(newpage, parent_page, PGSIZE);
+	memcpy(child_page, parent_page, PGSIZE);
 	writable = is_writable(pte);
 
 	/* 5. Add new page to child's page table at address VA with WRITABLE
 	 *    permission. */
-	if (!pml4_set_page (current->pml4, va, newpage, writable)) {
+	if (!pml4_set_page (current->pml4, va, child_page, writable)) {
 		/* 6. TODO: if fail to insert page, do error handling. */
-		palloc_free_page(newpage);  
+		palloc_free_page(child_page);  //이건 왜 해줘야하지?
         return false;
 	}
 	return true;
@@ -164,20 +164,20 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
  *       this function. */
 // static void
 void
-__do_fork (void *aux) {
+__do_fork (void *aux) {		//aux == parent
 	struct intr_frame if_;
 	struct thread *parent = (struct thread *) aux;
 	struct thread *current = thread_current ();
 	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-	struct intr_frame *parent_if = &parent->parent_tf;
+	// struct intr_frame *parent_if = &parent->parent_tf;
 	bool succ = true;
 
 	/* 1. Read the cpu context to local stack. */
-	memcpy (&if_, parent_if, sizeof (struct intr_frame));
-	if_.R.rax = 0;
+	memcpy (&if_, &parent->parent_tf, sizeof (struct intr_frame));
+	if_.R.rax = 0;	//왜 0으로 초기화하지?
 
 	/* 2. Duplicate PT */
-	current->pml4 = pml4_create();
+	current->pml4 = pml4_create();	//자식 스레드의 pml4 생성
 	if (current->pml4 == NULL)
 		goto error;
 
@@ -199,18 +199,18 @@ __do_fork (void *aux) {
 	if (parent->next_fd == FD_MAX) {
 		goto error;
 	}
-
 	// mytodo : fd_table 복제
-	for (int i=3; i<FD_MAX; i++) {
-		if (parent->fd_table[i] != NULL){
+	for (int i=2; i<FD_MAX; i++) {	//왜 i는 3부터 시작?
+		if (parent->fd_table[i] != NULL){	//여기선 fd_table을 배열로 썼네?
 			current->fd_table[i] = file_duplicate(parent->fd_table[i]);
 		}
 	}
 	current->next_fd = parent->next_fd;
-	sema_up(&current->fork_sema);
-
-	process_init ();
-
+	sema_up(&current->fork_sema);	//여기서 sema_up을 왜 해주지? 부모스레드는 자식스레드가 '생성'될 때까지 기다려주는거임.
+	process_init ();	//왜 sema_up을 한 뒤에 process_init을 하지? 여기서 process_init을 하면 자식 스레드가 초기화되는건가?
+	//자식 프로세스가 모든 초기화 작업을 완료한 후에 세마포어를 해제한다면, 리소스 충돌이나 동기화 문제가 발생할 수 있다
+	//근데 왜 테스트에는 문제가 없지? X
+	//sync/wirte에만 오류가 발생
 	/* Finally, switch to the newly created process. */
 	if (succ)
 		do_iret (&if_);
@@ -437,7 +437,7 @@ load (const char *file_name, struct intr_frame *if_) {
 		printf ("load: %s: open failed\n", args[0]);
 		goto done;
 	}
-	file_deny_write(file);
+
 
 	/* Read and verify executable header. */
 	if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -503,7 +503,7 @@ load (const char *file_name, struct intr_frame *if_) {
 				break;
 		}
 	}
-
+	file_deny_write(&file);
 	/* Set up stack. */
 	if (!setup_stack (if_))
 		goto done;
@@ -549,7 +549,6 @@ load (const char *file_name, struct intr_frame *if_) {
 
 done:
 	/* We arrive here whether the load is successful or not. */
-	file_close (file);
 	return success;
 }
 

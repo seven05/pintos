@@ -38,6 +38,7 @@ static struct thread *initial_thread;
 
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
+struct lock child_lock;
 
 /* Thread destruction requests */
 static struct list destruction_req;
@@ -226,7 +227,10 @@ thread_create (const char *name, int priority,
 	if (strcmp(name, "idle") != 0)
 	{
 // #ifdef USERPROG
+		lock_acquire(&t->child_lock);
 		list_push_back(&thread_current()->children, &t->child_elem);
+		lock_release(&t->child_lock);
+
 // #endif
 		t->recent_cpu = thread_current()->recent_cpu;
 	}
@@ -497,6 +501,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	list_init(&t->donations);
 	list_init(&t->children);
 	list_init(&(t->children));
+	lock_init(&child_lock);
 	sema_init(&t->fork_sema, 0);
 	sema_init(&t->wait_sema, 0);
     sema_init(&t->free_sema, 0);
@@ -840,13 +845,14 @@ void mlfqs_incr(){
 struct thread *get_thread_by_tid(tid_t tid) {
 	struct thread *parent = thread_current();
 	
-
+	lock_acquire(&parent->child_lock);
 	for (struct list_elem *e = list_begin(&parent->children); e != list_end(&parent->children); e = list_next(e)) {
         struct thread *child = list_entry(e, struct thread, child_elem);
         if (child->tid == tid) {
             return child;  // 자식 프로세스를 찾음
         }
     }
+	lock_release(&parent->child_lock);
 	return NULL;
 
     // struct list_elem *e;

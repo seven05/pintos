@@ -129,3 +129,4 @@ static __inline void write_msr(uint32_t ecx, uint64_t val) {
 }
 
 #endif /* intrinsic.h */
+

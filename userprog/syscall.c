@@ -171,7 +171,6 @@ void exit (int status){
 
 	printf("%s: exit(%d)\n", t->name, status);
 	thread_exit();
-	sema_up(&t->wait_sema);
 }
 
 pid_t fork (const char *thread_name){
@@ -181,6 +180,7 @@ pid_t fork (const char *thread_name){
 
 int exec (const char *cmd_line){
 	char *c = palloc_get_page(PAL_ZERO);
+
 	if (c == NULL) {
 		exit(-1);
 	}
@@ -206,26 +206,28 @@ bool remove (const char *file){
 
 int open (const char *file){
 	struct thread *t = thread_current();
-	if (t->next_fd == FD_MAX) {
+	if (t->next_fd == FD_MAX) {	//fd가 꽉 차있으면 오류 반환
+		return -1; 
+	}
+
+	if((t->fd_table[t->next_fd] = filesys_open(file)) == NULL) { 
+		//1. fildsys_open으로 filesystem을 열어준 뒤 어떤 반환값이 t->fd_tabel[t->next_fd]에 저장되는거야?
 		return -1;
 	}
-	if((t->fd_table[t->next_fd] = filesys_open(file)) == NULL) {
-		return -1;
-	}
-	int fd = t->next_fd;
+	int fd = t->next_fd;	//2. 왜 t->next_fd를 fd에 대입한 뒤 반환해?
 
 	// next_fd 갱신
 	for (int i=2; i<=FD_MAX; i++) {
 		if (i==FD_MAX) {
-			t->next_fd = i;
+			t->next_fd = i; //3. 이 부분의 의미를 모르겠어
 			break;
 		}
 		if (t->fd_table[i] == NULL) {
-			t->next_fd = i;
+			//4. 이 부분의 의미는, next_fd가 증가하다가, fd_table[t->enxt_fd]에 아무것도 저장되어있지 않으면, 끝 점인 i를 t->next_fd에 저장한다는건가? open이면, t->next_fd가 2로 초기화되어있어야되는거 아닌가?
+			t->next_fd = i;		
 			break;
 		}
 	}
-
 	return fd;
 }
 
@@ -234,11 +236,16 @@ int filesize (int fd){
 	return file_length(file);
 }
 
+
+//여기까지 확인
+
+
 int read (int fd, void *buffer, unsigned size){
 	// printf("\n============\n read buffer : %s \n============\n\n", buffer);
 	struct thread *curr = thread_current();
 
     struct file *file = get_file_by_descriptor(fd);
+	
 
     if (file == 1) {                // 0(stdin) -> keyboard로 직접 입력
         if (curr->stdin_count == 0) /** #Project 2: Extend File Descriptor - stdin이 닫혀있을 경우 */
@@ -264,10 +271,7 @@ int read (int fd, void *buffer, unsigned size){
     // 그 외의 경우
     off_t bytes = -1;
 
-    lock_acquire(&syscall_lock);
     bytes = file_read(file, buffer, size);
-    lock_release(&syscall_lock);
-
     return bytes;
 }
 
@@ -287,9 +291,8 @@ int write (int fd, const void *buffer, unsigned size){
 	if (file == NULL){
 		return -1;
 	}
-	lock_acquire(&syscall_lock);
+
 	int written = file_write(file, buffer, size);
-	lock_release(&syscall_lock);
 	return written;
 }
 

@@ -119,6 +119,7 @@ struct thread {
 	struct semaphore wait_sema;
 	struct semaphore free_sema;
 	struct list children;
+	struct lock child_lock;
 	struct list_elem child_elem;
 	int process_status;
 	int stdin_count;
