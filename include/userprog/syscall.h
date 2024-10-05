@@ -4,9 +4,8 @@
 #include "threads/thread.h"
 typedef int pid_t;
 
-typedef int pid_t;
-#define bool	_Bool
 
+extern struct lock syscall_lock;
 void syscall_init (void);
 
 void halt (void);

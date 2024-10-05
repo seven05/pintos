@@ -61,7 +61,6 @@ void check_address(const void *addr);
 #define MSR_SYSCALL_MASK 0xc0000084 /* Mask for the eflags */
 
 struct lock syscall_lock;
-
 void
 syscall_init (void) {
 	write_msr(MSR_STAR, ((uint64_t)SEL_UCSEG - 0x10) << 48  |
@@ -170,6 +169,7 @@ void exit (int status){
 	t->process_status = status;
 
 	printf("%s: exit(%d)\n", t->name, status);
+
 	thread_exit();
 }
 
@@ -197,7 +197,10 @@ int wait (pid_t pid){
 }
 
 bool create (const char *file, unsigned initial_size){
-	return filesys_create(file, initial_size);
+	// lock_acquire(&syscall_lock);		//minjae's
+	bool create_return = filesys_create(file, initial_size);
+	// lock_release(&syscall_lock);		//minjae's
+	return create_return;
 }
 
 bool remove (const char *file){
@@ -205,16 +208,27 @@ bool remove (const char *file){
 }
 
 int open (const char *file){
+	// lock_acquire(&syscall_lock);		//minjae's
 	struct thread *t = thread_current();
-	if (t->next_fd == FD_MAX) {	//fd가 꽉 차있으면 오류 반환
-		return -1; 
-	}
 
-	if((t->fd_table[t->next_fd] = filesys_open(file)) == NULL) { 
-		//1. fildsys_open으로 filesystem을 열어준 뒤 어떤 반환값이 t->fd_tabel[t->next_fd]에 저장되는거야?
+
+	if (t->next_fd == FD_MAX) {
+		// lock_release(&syscall_lock);	//minjae's
 		return -1;
 	}
-	int fd = t->next_fd;	//2. 왜 t->next_fd를 fd에 대입한 뒤 반환해?
+
+	struct file *openfile = filesys_open(file);
+
+	if((t->fd_table[t->next_fd] = openfile) == NULL) {
+		// lock_release(&syscall_lock);	//minjae's
+		return -1;
+	}
+
+	int fd = t->next_fd;
+
+	if (!strcmp(thread_name(), file)){
+		file_deny_write(openfile);
+	}
 
 	// next_fd 갱신
 	for (int i=2; i<=FD_MAX; i++) {
@@ -228,6 +242,8 @@ int open (const char *file){
 			break;
 		}
 	}
+
+	// lock_release(&syscall_lock);
 	return fd;
 }
 
@@ -241,15 +257,15 @@ int filesize (int fd){
 
 
 int read (int fd, void *buffer, unsigned size){
-	// printf("\n============\n read buffer : %s \n============\n\n", buffer);
+	// lock_acquire(&syscall_lock);
 	struct thread *curr = thread_current();
 
     struct file *file = get_file_by_descriptor(fd);
 	
-
     if (file == 1) {                // 0(stdin) -> keyboard로 직접 입력
         if (curr->stdin_count == 0) /** #Project 2: Extend File Descriptor - stdin이 닫혀있을 경우 */
-            return -1;
+            // lock_release(&syscall_lock);
+			return -1;
 
         int i = 0;  // 쓰레기 값 return 방지
         char c;
@@ -261,12 +277,13 @@ int read (int fd, void *buffer, unsigned size){
             if (c == '\0')
                 break;
         }
-
+		// lock_release(&syscall_lock);
         return i;
     }
 
-    if (file == NULL || file == 2)  // 빈 파일, stdout, stderr를 읽으려고 할 경우
-        return -1;
+	if (file == NULL || file == 2)  // 빈 파일, stdout, stderr를 읽으려고 할 경우
+        // lock_release(&syscall_lock);
+		return -1;
 
     // 그 외의 경우
     off_t bytes = -1;
@@ -276,43 +293,53 @@ int read (int fd, void *buffer, unsigned size){
 }
 
 int write (int fd, const void *buffer, unsigned size){
-	// printf("\n============\n write buffer : %s \n============\n\n", buffer);
 	struct thread *curr = thread_current();
+
 	if (fd == 0){		// Standard Input
 		return -1;
 	}
+
 	if (fd == 1){		// Standard Output
 		if (curr->stdout_count <= 0) /** #Project 2: Extend File Descriptor - stdout이 닫혀있을 경우 */
             return -1;
 		putbuf(buffer, size);
 		return size;
 	}
+
 	struct file *file = get_file_by_descriptor(fd);
 	if (file == NULL){
 		return -1;
 	}
 
+
+	lock_acquire(&syscall_lock);
 	int written = file_write(file, buffer, size);
+	lock_release(&syscall_lock);
+
 	return written;
 }
 
 void seek (int fd, unsigned position){
 	if (fd < 2)
 		return;
+
 	struct file *file = get_file_by_descriptor(fd);
 	if (file == NULL){
 		return -1;
 	}
+
 	file_seek(file, position);
 }
 
 unsigned tell (int fd){
 	if (fd < 2)
 		return;
+
 	struct file *file = get_file_by_descriptor(fd);
 	if (file == NULL){
 		return -1;
 	}
+
 	return file_tell(file);
 }
 

@@ -515,6 +515,8 @@ init_thread (struct thread *t, const char *name, int priority) {
 	sema_init(&t->fork_sema, 0);
 	sema_init(&t->wait_sema, 0);
 	sema_init(&t->free_sema, 0);
+	lock_init(&t->child_lock);
+
 	list_init(&t->children);
 	t->process_status = 0;
 #ifdef USERPROG
@@ -844,11 +846,14 @@ void mlfqs_incr(){
 
 struct thread *get_thread_by_tid(tid_t tid) {
 	struct thread *parent = thread_current();
-	
+
 	lock_acquire(&parent->child_lock);
 	for (struct list_elem *e = list_begin(&parent->children); e != list_end(&parent->children); e = list_next(e)) {
         struct thread *child = list_entry(e, struct thread, child_elem);
         if (child->tid == tid) {
+
+			lock_release(&parent->child_lock);
+
             return child;  // 자식 프로세스를 찾음
         }
     }

@@ -36,6 +36,7 @@ static void initd (void *f_name);
 void
 process_init (void) {
 	struct thread *current = thread_current ();
+
 }
 
 /* Starts the first userland program, called "initd", loaded from FILE_NAME.
@@ -92,8 +93,14 @@ tid_t
 process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	/* Clone current thread to new thread.*/
 	struct thread *parent = thread_current();
-	struct intr_frame *f = (pg_round_up(rrsp()) - sizeof(struct intr_frame));  // 현재 쓰레드의 if_는 페이지 마지막에 붙어있다.
-	memcpy(&parent->parent_tf, f, sizeof(struct intr_frame)); //parent tf가 뭐지?
+
+
+	// struct intr_frame *f = (pg_round_up(rrsp()) - sizeof(struct intr_frame));  // 현재 쓰레드의 if_는 페이지 마지막에 붙어있다.
+	// memcpy(&parent->parent_tf, f, sizeof(struct intr_frame));
+
+	struct intr_frame *f = (pg_round_up(rrsp()) - sizeof(struct intr_frame));
+	//왜? 왜? 왜? memcpy이건 왜??
+	memcpy(&parent->parent_tf, f, sizeof(struct intr_frame));
 
 	tid_t child_tid = thread_create(name, PRI_DEFAULT, __do_fork, (void *)parent);	//__do_fork에 parent를 넣는건가? child_tid에는 어떤 값이 담기는거지?
 	if (child_tid == TID_ERROR) {	//child_tid가 할당받지 못했으면 에러 반환
@@ -196,12 +203,14 @@ __do_fork (void *aux) {		//aux == parent
 	 * TODO:       in include/filesys/file.h. Note that parent should not return
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
-	if (parent->next_fd == FD_MAX) {
-		goto error;
-	}
+
+	// if (parent->next_fd == FD_MAX) {
+	// 	goto error;
+	// }
+
 	// mytodo : fd_table 복제
-	for (int i=2; i<FD_MAX; i++) {	//왜 i는 3부터 시작?
-		if (parent->fd_table[i] != NULL){	//여기선 fd_table을 배열로 썼네?
+	for (int i=2; i<FD_MAX; i++) {
+		if (parent->fd_table[i] != NULL){
 			current->fd_table[i] = file_duplicate(parent->fd_table[i]);
 		}
 	}
@@ -243,9 +252,10 @@ process_exec (void *f_name) {
 	process_cleanup ();
 
 	/* And then load the binary */
+	// lock_acquire(&syscall_lock);
 	success = load (file_name, &_if);
-
 	/* If load failed, quit. */
+    // lock_release(&syscall_lock);
 	palloc_free_page (file_name);
 	if (!success)
 		return -1;
@@ -296,10 +306,14 @@ process_exit (void) {
 	for (int i = 0; i < FD_MAX; i++) {
         close(i);
     }
-	palloc_free_multiple(curr->fd_table, 1);
+	palloc_free_page(curr->fd_table);
+
+	// file_close(curr->running);
 	
     process_cleanup();
+
     sema_up(&curr->wait_sema); // 끝나고 기다리는 부모한테 세마포 넘겨줌
+
     sema_down(&curr->free_sema); // 부모가 자식 free하고 세마포 넘길 때까지 기다림
 
 }
@@ -438,6 +452,8 @@ load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 	}
 
+	// t->running = file;			// minjae's
+	// file_deny_write(file);		// minjae's
 
 	/* Read and verify executable header. */
 	if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -549,6 +565,8 @@ load (const char *file_name, struct intr_frame *if_) {
 
 done:
 	/* We arrive here whether the load is successful or not. */
+
+	file_close (file);		// minjae's 경우 없앰
 	return success;
 }
 
