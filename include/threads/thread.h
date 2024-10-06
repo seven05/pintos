@@ -4,7 +4,6 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include "threads/synch.h"
 #include "threads/interrupt.h"
 
 #include "threads/synch.h"
@@ -33,6 +32,8 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+#define FDT_PAGES 2
+#define FDT_COUNT_LIMIT 128
 
 /* A kernel thread or user process.
  *
@@ -111,7 +112,6 @@ struct thread {
 	struct list_elem elem;              /* List element. */
 
 // #ifdef USERPROG
-
 	uint64_t *pml4;                     /* Page map level 4 */
 	struct file **fd_table;
 	int next_fd;
@@ -119,16 +119,16 @@ struct thread {
 	struct semaphore wait_sema;
 	struct semaphore free_sema;
 	struct list children;
-	struct lock child_lock;
 	struct list_elem child_elem;
 	int process_status;
 	int stdin_count;
     int stdout_count;
 	struct lock child_lock;
-	// struct file *running;		// minjae's
+	struct file *running;		// minjae's
+	struct thread *parent; 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
-#endif	
+#endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
 	struct supplemental_page_table spt;
@@ -184,5 +184,4 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
-#endif 
-/* threads/thread.h */
+#endif /* threads/thread.h */

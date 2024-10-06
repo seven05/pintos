@@ -12,7 +12,6 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "threads/palloc.h"
-#include "threads/thread.h"
 
 #include "threads/synch.h"
 #include <string.h>
@@ -45,7 +44,6 @@ void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 void user_memory_valid(void *r);
 struct file *get_file_by_descriptor(int fd);
-void check_address(const void *addr);
 
 /* System call.
  *
@@ -101,7 +99,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			break;
 		case SYS_FORK:							//  2 프로세스 복제
 			// printf("SYS_FORK\n");
-			f->R.rax=fork((char *)arg1);
+			f->R.rax=fork(arg1);
 			break;
 		case SYS_EXEC:							//  3 새로운 프로그램 실행
 			// printf("SYS_EXEC\n");
@@ -110,7 +108,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			break;
 		case SYS_WAIT:							//  4 자식 프로세스 대기
 			// printf("SYS_WAIT\n");
-			f->R.rax=wait(f->R.rdi);
+			f->R.rax=wait(arg1);
 			break;
 		case SYS_CREATE:						//  5 파일 생성
 			// printf("SYS_CREATE\n");
@@ -168,6 +166,13 @@ void exit (int status){
 	struct thread *t = thread_current();
 	t->process_status = status;
 
+	  // 모든 열린 파일 디스크립터를 닫음
+  	for (int i = 0; i < FD_MAX; i++) {
+      	if (t->fd_table[i] != NULL) {
+          close(i);  // 파일 디스크립터를 닫음
+      	}
+  	}
+
 	printf("%s: exit(%d)\n", t->name, status);
 
 	thread_exit();
@@ -180,8 +185,8 @@ pid_t fork (const char *thread_name){
 
 int exec (const char *cmd_line){
 	char *c = palloc_get_page(PAL_ZERO);
-
 	if (c == NULL) {
+		palloc_free_page(c);
 		exit(-1);
 	}
 	strlcpy(c, cmd_line, strlen(cmd_line) + 1);
@@ -197,9 +202,9 @@ int wait (pid_t pid){
 }
 
 bool create (const char *file, unsigned initial_size){
-	// lock_acquire(&syscall_lock);		//minjae's
+	lock_acquire(&syscall_lock);		//minjae's
 	bool create_return = filesys_create(file, initial_size);
-	// lock_release(&syscall_lock);		//minjae's
+	lock_release(&syscall_lock);		//minjae's
 	return create_return;
 }
 
@@ -208,42 +213,39 @@ bool remove (const char *file){
 }
 
 int open (const char *file){
-	// lock_acquire(&syscall_lock);		//minjae's
+	lock_acquire(&syscall_lock);		//minjae's
 	struct thread *t = thread_current();
 
-
 	if (t->next_fd == FD_MAX) {
-		// lock_release(&syscall_lock);	//minjae's
+		lock_release(&syscall_lock);	//minjae's
 		return -1;
 	}
 
 	struct file *openfile = filesys_open(file);
 
 	if((t->fd_table[t->next_fd] = openfile) == NULL) {
-		// lock_release(&syscall_lock);	//minjae's
+		lock_release(&syscall_lock);	//minjae's
 		return -1;
 	}
 
 	int fd = t->next_fd;
 
-	if (!strcmp(thread_name(), file)){
-		file_deny_write(openfile);
-	}
+	// if (!strcmp(thread_name(), file)){
+	// 	file_deny_write(openfile);
+	// }
 
 	// next_fd 갱신
 	for (int i=2; i<=FD_MAX; i++) {
 		if (i==FD_MAX) {
-			t->next_fd = i; //3. 이 부분의 의미를 모르겠어
+			t->next_fd = i;
 			break;
 		}
 		if (t->fd_table[i] == NULL) {
-			//4. 이 부분의 의미는, next_fd가 증가하다가, fd_table[t->enxt_fd]에 아무것도 저장되어있지 않으면, 끝 점인 i를 t->next_fd에 저장한다는건가? open이면, t->next_fd가 2로 초기화되어있어야되는거 아닌가?
-			t->next_fd = i;		
+			t->next_fd = i;
 			break;
 		}
 	}
-
-	// lock_release(&syscall_lock);
+	lock_release(&syscall_lock); //minjae's
 	return fd;
 }
 
@@ -251,10 +253,6 @@ int filesize (int fd){
 	struct file *file = get_file_by_descriptor(fd);
 	return file_length(file);
 }
-
-
-//여기까지 확인
-
 
 int read (int fd, void *buffer, unsigned size){
 	// lock_acquire(&syscall_lock);
@@ -288,7 +286,10 @@ int read (int fd, void *buffer, unsigned size){
     // 그 외의 경우
     off_t bytes = -1;
 
+    lock_acquire(&syscall_lock);
     bytes = file_read(file, buffer, size);
+    lock_release(&syscall_lock);
+
     return bytes;
 }
 
@@ -310,7 +311,6 @@ int write (int fd, const void *buffer, unsigned size){
 	if (file == NULL){
 		return -1;
 	}
-
 
 	lock_acquire(&syscall_lock);
 	int written = file_write(file, buffer, size);
@@ -388,16 +388,4 @@ struct file *get_file_by_descriptor(int fd)
 	struct thread *t = thread_current();
 
 	return t->fd_table[fd];
-} 
-
-void check_address(const void *addr) {
-    // addr가 NULL이거나, 유저 공간에 있지 않다면
-    if (addr == NULL || !is_user_vaddr(addr)) {
-        exit(-1);  // 유효하지 않은 주소라면 프로그램을 종료
-    }
-
-    // 해당 주소가 매핑되어 있지 않다면
-    if (pml4_get_page(thread_current()->pml4, addr) == NULL) {
-        exit(-1);  // 매핑되지 않은 주소라면 프로그램을 종료
-    }
 }

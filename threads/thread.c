@@ -38,7 +38,6 @@ static struct thread *initial_thread;
 
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
-struct lock child_lock;
 
 /* Thread destruction requests */
 static struct list destruction_req;
@@ -230,11 +229,11 @@ thread_create (const char *name, int priority,
 		lock_acquire(&t->child_lock);
 		list_push_back(&thread_current()->children, &t->child_elem);
 		lock_release(&t->child_lock);
+		t->parent = thread_current();  // 현재 스레드를 부모로 설정
 
 // #endif
 		t->recent_cpu = thread_current()->recent_cpu;
 	}
-
 
 	t->fd_table = palloc_get_page(PAL_ZERO);
 	if (t->fd_table == NULL)
@@ -243,7 +242,6 @@ thread_create (const char *name, int priority,
 	/*------- PROJECT 2 : USER PROGRAMS -------*/
 	t->fd_table[0] = 1; // dummy values to distinguish fd 0 and 1 from NULL
 	t->fd_table[1] = 2;
-	t->next_fd = 2;	// 0: stdin, 1: stdout
 
 	t->stdin_count = 1;
     t->stdout_count = 1;
@@ -499,23 +497,17 @@ init_thread (struct thread *t, const char *name, int priority) {
 
 	t->ori_priority = priority;
 	list_init(&t->donations);
-	list_init(&t->children);
-	list_init(&(t->children));
-	lock_init(&child_lock);
-	sema_init(&t->fork_sema, 0);
-	sema_init(&t->wait_sema, 0);
-    sema_init(&t->free_sema, 0);
 
 	t->nice = 0;
 	t->recent_cpu = 0;
 
 // #ifdef USERPROG
-
 	// 0, 1 더미데이터
 	sema_init(&t->fork_sema, 0);
 	sema_init(&t->wait_sema, 0);
 	sema_init(&t->free_sema, 0);
 	lock_init(&t->child_lock);
+	t->next_fd = 2;	// 0: stdin, 1: stdout
 
 	list_init(&t->children);
 	t->process_status = 0;
@@ -859,7 +851,6 @@ struct thread *get_thread_by_tid(tid_t tid) {
     }
 	lock_release(&parent->child_lock);
 	return NULL;
-
     // struct list_elem *e;
     // for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
     //     struct thread *t = list_entry(e, struct thread, all_elem);
