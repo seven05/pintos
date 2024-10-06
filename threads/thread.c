@@ -206,9 +206,9 @@ thread_create (const char *name, int priority,
 
 	/* Allocate thread. */
 	t = palloc_get_page (PAL_ZERO);
-	if (t == NULL)
+	if (t == NULL){
 		return TID_ERROR;
-
+	}
 	/* Initialize thread. */
 	init_thread (t, name, priority);
 	tid = t->tid = allocate_tid ();
@@ -226,25 +226,20 @@ thread_create (const char *name, int priority,
 	if (strcmp(name, "idle") != 0)
 	{
 // #ifdef USERPROG
-		lock_acquire(&t->child_lock);
 		list_push_back(&thread_current()->children, &t->child_elem);
-		lock_release(&t->child_lock);
-		t->parent = thread_current();  // 현재 스레드를 부모로 설정
 
 // #endif
 		t->recent_cpu = thread_current()->recent_cpu;
 	}
 
-	t->fd_table = palloc_get_page(PAL_ZERO);
+	/*------- PROJECT 2 : USER PROGRAMS -------*/
+	t->fd_table = palloc_get_multiple(PAL_ZERO, 2);
 	if (t->fd_table == NULL)
 		return TID_ERROR;
-	
-	/*------- PROJECT 2 : USER PROGRAMS -------*/
-	t->fd_table[0] = 1; // dummy values to distinguish fd 0 and 1 from NULL
-	t->fd_table[1] = 2;
-
-	t->stdin_count = 1;
-    t->stdout_count = 1;
+	t->fd_table[STD_IN] = 1;
+    t->fd_table[STD_OUT] = 2;
+    t->fd_table[STD_ERR] = 3;
+	t->next_fd = 3;
 
 	/* Add to run queue. */
 	thread_unblock (t);
@@ -502,17 +497,13 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->recent_cpu = 0;
 
 // #ifdef USERPROG
-	// 0, 1 더미데이터
 	sema_init(&t->fork_sema, 0);
 	sema_init(&t->wait_sema, 0);
 	sema_init(&t->free_sema, 0);
-	lock_init(&t->child_lock);
-	t->next_fd = 2;	// 0: stdin, 1: stdout
 
 	list_init(&t->children);
-	t->process_status = 0;
-#ifdef USERPROG
-#endif
+	t->process_status = PROCESS_NORM;
+// #endif
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -839,24 +830,11 @@ void mlfqs_incr(){
 struct thread *get_thread_by_tid(tid_t tid) {
 	struct thread *parent = thread_current();
 
-	lock_acquire(&parent->child_lock);
 	for (struct list_elem *e = list_begin(&parent->children); e != list_end(&parent->children); e = list_next(e)) {
         struct thread *child = list_entry(e, struct thread, child_elem);
         if (child->tid == tid) {
-
-			lock_release(&parent->child_lock);
-
             return child;  // 자식 프로세스를 찾음
         }
     }
-	lock_release(&parent->child_lock);
 	return NULL;
-    // struct list_elem *e;
-    // for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
-    //     struct thread *t = list_entry(e, struct thread, all_elem);
-    //     if (t->tid == tid) {
-    //         return t;
-    //     }
-    // }
-    // return NULL;
 }

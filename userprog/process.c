@@ -56,8 +56,10 @@ process_create_initd (const char *file_name) {
 	/* Make a copy of FILE_NAME.
 	 * Otherwise there's a race between the caller and load(). */
 	fn_copy = palloc_get_page (0);
-	if (fn_copy == NULL)
+	if (fn_copy == NULL){
+		palloc_free_page (fn_copy);
 		return TID_ERROR;
+	}
 
 	strlcpy (fn_copy, file_name, PGSIZE);
 	token = strtok_r(file_name, " ", &save_ptr);
@@ -66,8 +68,11 @@ process_create_initd (const char *file_name) {
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
 	// printf("tid = %d\n",tid);
-	if (tid == TID_ERROR)
+
+	if (tid == TID_ERROR){
 		palloc_free_page (fn_copy);
+	}
+
 	return tid;
 }
 
@@ -95,7 +100,7 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	struct thread *parent = thread_current();
 
 	struct intr_frame *f = (pg_round_up(rrsp()) - sizeof(struct intr_frame));
-	//이걸 내장함수를 쓰지 않고 구현하고싶어
+
 	memcpy(&parent->parent_tf, f, sizeof(struct intr_frame));
 	//memcpy를 해서 parent->parent_tf에 f를 복사하는 이유를 모르겠어
 	
@@ -158,6 +163,7 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 		/* 6. TODO: if fail to insert page, do error handling. */
         return false;
 	}
+	
 	return true;
 }
 #endif
@@ -187,13 +193,15 @@ static void __do_fork (void *aux) {
         goto error;
     }
 
-    // 파일 디스크립터 복사
-    for (int i = 0; i < FD_MAX; i++) {
-        if (parent->fd_table[i] != NULL) {
-            current->fd_table[i] = file_duplicate(parent->fd_table[i]);
-        }
-    }
-    current->next_fd = parent->next_fd;
+
+	// mytodo : fd_table 복제
+	for (int i=3; i<FD_MAX; i++) {
+		if (parent->fd_table[i] != NULL){
+			current->fd_table[i] = file_duplicate(parent->fd_table[i]);
+		}
+	}
+	current->next_fd = parent->next_fd;
+	sema_up(&current->fork_sema);
 
     sema_up(&current->fork_sema);
     if (success) {
@@ -207,6 +215,42 @@ error:
 }
 
 
+/* Switch the current execution context to the f_name.
+ * Returns -1 on fail. */
+// 단순히 프로그램 파일 이름만을 인자로 받아오게 하는 대신
+// 공백을 기준으로 여러 단어로 나누어지게 만드세요.
+int
+process_exec (void *f_name) {  
+	char *file_name = f_name;	
+	bool success;
+	// printf("f_name3: %s\n" ,*(&f_name));
+	// printf("finame: %p\n" ,file_name);
+	
+	/* We cannot use the intr_frame in the thread structure.
+	 * This is because when current thread rescheduled,
+	 * it stores the execution information to the member. */
+	struct intr_frame _if;
+	_if.ds = _if.es = _if.ss = SEL_UDSEG;
+	_if.cs = SEL_UCSEG;
+	_if.eflags = FLAG_IF | FLAG_MBS;
+
+	/* We first kill the current context */
+	process_cleanup ();
+
+	/* And then load the binary */
+	lock_acquire(&syscall_lock); //minjae's
+	success = load (file_name, &_if);
+    lock_release(&syscall_lock); //minjae's
+	palloc_free_page (file_name);
+
+	/* If load failed, quit. */
+	if (!success)
+		return -1;
+
+	/* Start switched process. */
+	do_iret (&_if);
+	NOT_REACHED ();
+}
 
 /* Waits for thread TID to die and returns its exit status.  If
  * it was terminated by the kernel (i.e. killed due to an
@@ -248,17 +292,13 @@ process_exit (void) {
 	for (int i = 0; i < FD_MAX; i++) {
         close(i);
     }
-	palloc_free_page(curr->fd_table);
 
-	file_close(curr->running);
-	
+	palloc_free_multiple(curr->fd_table, 2);
+	file_close(curr->running); //minjae's
     process_cleanup();
-    /* 자식 프로세스일 때만 부모에게 종료 알림 */
-    if (curr->parent != NULL) {  // 부모 프로세스가 있는 경우에만
-        sema_up(&curr->wait_sema); // 부모에게 알림
-    }
-    sema_down(&curr->free_sema); // 부모가 자식 free하고 세마포 넘길 때까지 기다림
 
+    sema_up(&curr->wait_sema); // 끝나고 기다리는 부모한테 세마포 넘겨줌
+    sema_down(&curr->free_sema); // 부모가 자식 free하고 세마포 넘길 때까지 기다림
 }
 
 /* Free the current process's resources. */
@@ -373,17 +413,22 @@ load (const char *file_name, struct intr_frame *if_) {
 	
 	char *args[32];
 	int argc = 0;
-	char *token;
     char *save_ptr;
-	char fn_copy[64];	//숫자를 몇으로 해줘야하는가?
+	// char fn_copy[64];
+	char *fn_copy;
+	
+	fn_copy = palloc_get_page(PAL_ZERO);
+	if (fn_copy == NULL) {
+		goto done;
+	}
 
 	// fn_copy = palloc_get_page(0);
 	// if (fn_copy == NULL) {
     // 	return false; // 메모리 할당 실패시 바로 종료
 	// }
 	// 문자열 파싱
-    strlcpy(fn_copy, file_name, sizeof(fn_copy));
-	for (char* token = strtok_r(fn_copy, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
+    strlcpy(fn_copy, file_name, PGSIZE);
+	for (char *token = strtok_r(fn_copy, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
     	args[argc++] = token;
 	}
 	
@@ -398,8 +443,11 @@ load (const char *file_name, struct intr_frame *if_) {
 		printf ("load: %s: open failed\n", args[0]);
 		goto done;
 	}
+
+
 	t->running = file;			// minjae's
 	file_deny_write(file);		// minjae's
+
 	/* Read and verify executable header. */
 	if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
 			|| memcmp (ehdr.e_ident, "\177ELF\2\1\1", 7)
@@ -511,10 +559,10 @@ load (const char *file_name, struct intr_frame *if_) {
 done:
 	/* We arrive here whether the load is successful or not. */
 	// file_close (file);		// minjae's 경우 없앰
-	// if (fn_copy != NULL) {
-    // 	palloc_free_page(fn_copy);  // 메모리 해제
-    // 	fn_copy = NULL;  // dangling pointer 방지
-	// }
+
+	if (fn_copy != NULL) {
+        palloc_free_page(fn_copy);
+    }
 	return success;
 }
 
