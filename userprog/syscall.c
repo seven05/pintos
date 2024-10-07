@@ -179,6 +179,7 @@ int exec (const char *cmd_line){
 
 	char *copy = palloc_get_page(PAL_ZERO);
 	if (copy == NULL) {
+		palloc_free_page(copy);
 		exit(-1);
 	}
 	strlcpy(copy, cmd_line, strlen(cmd_line) + 1);
@@ -204,43 +205,67 @@ bool remove (const char *file){
 	return filesys_remove(file);
 }
 
-int open (const char *file){
-	lock_acquire(&syscall_lock);		//minjae's
+// int open (const char *file){
+// 	// lock_acquire(&syscall_lock);		//minjae's
 
-	struct thread *curr = thread_current();
+// 	struct thread *curr = thread_current();
 
-	if (curr->next_fd == FD_MAX) {
-		lock_release(&syscall_lock);	//minjae's
-		return -1;
-	}
+// 	if (curr->next_fd == FD_MAX) {
+// 		// lock_release(&syscall_lock);	//minjae's
+// 		return -1;
+// 	}
 
-	struct file *openfile = filesys_open(file);
+// 	struct file *openfile = filesys_open(file);
 
-	if((curr->fd_table[curr->next_fd] = openfile) == NULL) {
-		lock_release(&syscall_lock);	//minjae's
-		return -1;
-	}
+// 	if((curr->fd_table[curr->next_fd] = openfile) == NULL) {
+// 		// lock_release(&syscall_lock);	//minjae's
+// 		return -1;
+// 	}
 
-	int fd = curr->next_fd;
+// 	int fd = curr->next_fd;
 
-	// if (!strcmp(thread_name(), file)){
-	// 	file_deny_write(openfile);
-	// }
+// 	for (int i=3; i<FD_MAX; i++) {
+// 		if (i==FD_MAX) {
+// 			curr->next_fd = i;
+// 			break;
+// 		}
+// 		if (curr->fd_table[i] == NULL) {
+// 			curr->next_fd = i;
+// 			break;
+// 		}
+// 	}
 
-	// next_fd 갱신
-	for (int i=3; i<=FD_MAX; i++) {
-		if (i==FD_MAX) {
-			curr->next_fd = i;
-			break;
-		}
-		if (curr->fd_table[i] == NULL) {
-			curr->next_fd = i;
-			break;
-		}
-	}
+// 	// lock_release(&syscall_lock);	//minjae's
+// 	return fd;
+// }
 
-	lock_release(&syscall_lock);	//minjae's
-	return fd;
+int open (const char *file) {
+    // lock_acquire(&syscall_lock);  // 필요시 잠금 처리 (minjae's)
+    
+    struct thread *curr = thread_current();
+
+    if (curr->next_fd == FD_MAX) {
+        // lock_release(&syscall_lock);  // 필요시 잠금 해제 (minjae's)
+        return -1;
+    }
+
+    struct file *openfile = filesys_open(file);
+
+    // 파일 열기 실패 시 처리
+    if ((curr->fd_table[curr->next_fd] = openfile) == NULL) {
+        // lock_release(&syscall_lock);  // 필요시 잠금 해제 (minjae's)
+        return -1;
+    }
+
+    int fd = curr->next_fd;
+
+    // while 문으로 빈 파일 디스크립터를 찾음
+    while (curr->next_fd < FD_MAX && curr->fd_table[curr->next_fd] != NULL) {
+        curr->next_fd++;
+    }
+
+    // lock_release(&syscall_lock);  // 필요시 잠금 해제 (minjae's)
+    return fd;
 }
 
 int filesize (int fd){
@@ -321,22 +346,32 @@ unsigned tell (int fd){
 	return file_tell(file);
 }
 
-void close (int fd){
-	struct thread *curr = thread_current();
-	struct file *file = get_file_by_descriptor(fd);
-	if (file == NULL){
-		return;
-	}
+// void close (int fd){
+// 	struct thread *curr = thread_current();
+// 	struct file *file = get_file_by_descriptor(fd);
+// 	if (file == NULL){
+// 		return;
+// 	}
 
-	if (fd < 0 || fd >= FD_MAX)
-        return;
-    curr->fd_table[fd] = NULL;
+// 	if (fd < 0 || fd >= FD_MAX)
+//         return;
+//     curr->fd_table[fd] = NULL;
 
-	if (curr->next_fd == FD_MAX) {
-		curr->next_fd = fd;
-	}
+// 	if (curr->next_fd == FD_MAX) {
+// 		curr->next_fd = fd;
+// 	}
 	
-	file_close(file);
+// 	file_close(file);
+// }
+
+void close(int fd) {
+    struct thread *curr = thread_current();
+    
+    if (fd >= 3 && fd < FD_MAX && curr->fd_table[fd] != NULL) {
+        file_close(curr->fd_table[fd]);  // 파일을 닫음
+        curr->fd_table[fd] = NULL;       // 파일 디스크립터 테이블에서 제거
+        curr->next_fd = fd;              // next_fd를 현재 닫힌 fd로 설정
+    }
 }
 
 
@@ -350,7 +385,7 @@ void user_memory_valid(void *r){
 
 struct file *get_file_by_descriptor(int fd)
 {
-	if (fd < 3 || fd > 128)
+	if (fd < 3 || fd > FD_MAX)
 		return NULL;
 	struct thread *t = thread_current();
 	return t->fd_table[fd];

@@ -36,7 +36,6 @@ static void initd (void *f_name);
 void
 process_init (void) {
 	struct thread *current = thread_current ();
-
 }
 
 /* Starts the first userland program, called "initd", loaded from FILE_NAME.
@@ -57,8 +56,7 @@ process_create_initd (const char *file_name) {
 	 * Otherwise there's a race between the caller and load(). */
 	fn_copy = palloc_get_page (0);
 	if (fn_copy == NULL){
-		palloc_free_page (fn_copy);
-		return TID_ERROR;
+				return TID_ERROR;
 	}
 
 	strlcpy (fn_copy, file_name, PGSIZE);
@@ -100,10 +98,7 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	struct thread *parent = thread_current();
 
 	struct intr_frame *f = (pg_round_up(rrsp()) - sizeof(struct intr_frame));
-
 	memcpy(&parent->parent_tf, f, sizeof(struct intr_frame));
-	//memcpy를 해서 parent->parent_tf에 f를 복사하는 이유를 모르겠어
-	
 
 	tid_t child_tid = thread_create(name, PRI_DEFAULT, __do_fork, (void *)parent);
 	if (child_tid == TID_ERROR) {
@@ -111,6 +106,7 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	}
 
 	struct thread *child = get_thread_by_tid(child_tid);
+	
 	if (child == NULL) {
 		return TID_ERROR;
 	}
@@ -132,7 +128,7 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	struct thread *current = thread_current ();
 	struct thread *parent = (struct thread *) aux;
 	void *parent_page;
-	void *child_page;
+	void *newpage;
 	bool writable;
 
 	/* 1. TODO: If the parent_page is kernel page, then return immediately. */
@@ -147,20 +143,22 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 
 	/* 3. TODO: Allocate new PAL_USER page for the child and set result to
 	 *    TODO: NEWPAGE. */
-	if ((child_page = palloc_get_page(PAL_USER | PAL_ZERO)) == NULL) {
+	if ((newpage = palloc_get_page(PAL_USER | PAL_ZERO)) == NULL) {
+		palloc_free_page(newpage);
 		return false;
 	}
 
 	/* 4. TODO: Duplicate parent's page to the new page and
 	 *    TODO: check whether parent's page is writable or not (set WRITABLE
 	 *    TODO: according to the result). */
-	memcpy(child_page, parent_page, PGSIZE);
+	memcpy(newpage, parent_page, PGSIZE);
 	writable = is_writable(pte);
 
 	/* 5. Add new page to child's page table at address VA with WRITABLE
 	 *    permission. */
-	if (!pml4_set_page (current->pml4, va, child_page, writable)) {
+	if (!pml4_set_page (current->pml4, va, newpage, writable)) {
 		/* 6. TODO: if fail to insert page, do error handling. */
+		palloc_free_page(newpage);  
         return false;
 	}
 	
@@ -173,29 +171,45 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
  *       That is, you are required to pass second argument of process_fork to
  *       this function. */
 // static void
-static void __do_fork (void *aux) {
-    struct intr_frame if_;
-    struct thread *parent = (struct thread *) aux;
-    struct thread *current = thread_current();
-    bool success = true;
+void
+__do_fork (void *aux) {
+	struct intr_frame if_;
+	struct thread *parent = (struct thread *) aux;
+	struct thread *current = thread_current ();
+	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
+	struct intr_frame *parent_if = &parent->parent_tf;
+	bool succ = true;
 
-    memcpy(&if_, &parent->parent_tf, sizeof(struct intr_frame));
-    if_.R.rax = 0;
+	/* 1. Read the cpu context to local stack. */
+	memcpy (&if_, parent_if, sizeof (struct intr_frame));
+	if_.R.rax = 0;
 
-    current->pml4 = pml4_create();
-    if (current->pml4 == NULL) {
-        goto error;
-    }
+	/* 2. Duplicate PT */
+	current->pml4 = pml4_create();
+	if (current->pml4 == NULL)
+		goto error;
 
-    process_activate(current);
+	process_activate (current);
+#ifdef VM
+	supplemental_page_table_init (&current->spt);
+	if (!supplemental_page_table_copy (&current->spt, &parent->spt))
+		goto error;
+#else
+	if (!pml4_for_each (parent->pml4, duplicate_pte, parent))
+		goto error;
+#endif
 
-    if (!pml4_for_each(parent->pml4, duplicate_pte, parent)) {
-        goto error;
-    }
-
+	/* TODO: Your code goes here.
+	 * TODO: Hint) To duplicate the file object, use `file_duplicate`
+	 * TODO:       in include/filesys/file.h. Note that parent should not return
+	 * TODO:       from the fork() until this function successfully duplicates
+	 * TODO:       the resources of parent.*/
+	// if (parent->next_fd == FD_MAX) {
+	// 	goto error;
+	// }
 
 	// mytodo : fd_table 복제
-	for (int i=3; i<FD_MAX; i++) {
+	for (int i=3; i<=FD_MAX; i++) {
 		if (parent->fd_table[i] != NULL){
 			current->fd_table[i] = file_duplicate(parent->fd_table[i]);
 		}
@@ -203,17 +217,16 @@ static void __do_fork (void *aux) {
 	current->next_fd = parent->next_fd;
 	sema_up(&current->fork_sema);
 
-    sema_up(&current->fork_sema);
-    if (success) {
-        do_iret(&if_);
-    }
-error:
-    palloc_free_page(current->pml4);  // 실패 시 메모리 해제
-    sema_up(&current->fork_sema);
-    current->process_status = PROCESS_ERR;
-    thread_exit();
-}
+	process_init ();
 
+	/* Finally, switch to the newly created process. */
+	if (succ)
+		do_iret (&if_);
+error:
+	sema_up(&current->fork_sema);
+	current->process_status = PROCESS_ERR;
+	exit(-1);
+}
 
 /* Switch the current execution context to the f_name.
  * Returns -1 on fail. */
@@ -251,6 +264,7 @@ process_exec (void *f_name) {
 	do_iret (&_if);
 	NOT_REACHED ();
 }
+
 
 /* Waits for thread TID to die and returns its exit status.  If
  * it was terminated by the kernel (i.e. killed due to an
@@ -292,7 +306,6 @@ process_exit (void) {
 	for (int i = 0; i < FD_MAX; i++) {
         close(i);
     }
-
 	palloc_free_multiple(curr->fd_table, 2);
 	file_close(curr->running); //minjae's
     process_cleanup();
@@ -422,10 +435,6 @@ load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 	}
 
-	// fn_copy = palloc_get_page(0);
-	// if (fn_copy == NULL) {
-    // 	return false; // 메모리 할당 실패시 바로 종료
-	// }
 	// 문자열 파싱
     strlcpy(fn_copy, file_name, PGSIZE);
 	for (char *token = strtok_r(fn_copy, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
@@ -443,7 +452,6 @@ load (const char *file_name, struct intr_frame *if_) {
 		printf ("load: %s: open failed\n", args[0]);
 		goto done;
 	}
-
 
 	t->running = file;			// minjae's
 	file_deny_write(file);		// minjae's
@@ -559,7 +567,6 @@ load (const char *file_name, struct intr_frame *if_) {
 done:
 	/* We arrive here whether the load is successful or not. */
 	// file_close (file);		// minjae's 경우 없앰
-
 	if (fn_copy != NULL) {
         palloc_free_page(fn_copy);
     }
@@ -650,10 +657,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 		/* Get a page of memory. */
 		uint8_t *kpage = palloc_get_page (PAL_USER);
-		if (kpage == NULL) {
-			palloc_free_page (kpage);
+		if (kpage == NULL)
 			return false;
-		}
 
 		/* Load this page. */
 		if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes) {
