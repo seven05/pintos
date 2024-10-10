@@ -16,6 +16,8 @@ vm_init (void) {
 	register_inspect_intr ();
 	/* DO NOT MODIFY UPPER LINES. */
 	/* TODO: Your code goes here. */
+	
+	list_init(&frame_table);
 }
 
 /* Get the type of the page. This function is useful if you want to know the
@@ -63,10 +65,17 @@ err:
 /* Find VA from spt and return page. On error, return NULL. */
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
-	struct page *page = NULL;
 	/* TODO: Fill this function. */
+	struct page *page;
+	page->va = va;
 
-	return page;
+	struct hash_elem *e = hash_find(&spt->spt_hash, &page->elem);
+
+	if (e) {
+		return hash_entry(e, struct page, elem);
+	} else {
+		return NULL;
+	}
 }
 
 /* Insert PAGE into spt with validation. */
@@ -75,6 +84,11 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
 	int succ = false;
 	/* TODO: Fill this function. */
+	struct hash_elem *elem = hash_insert(&spt->spt_hash, &page->elem);
+	
+	if (!elem) {	// 넣을 수 있으면
+		succ = true;
+	}
 
 	return succ;
 }
@@ -115,6 +129,13 @@ vm_get_frame (void) {
 
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
+
+	// mytodo : 사용 가능한 프레임 가져오기 (프레임 테이블 필요?)
+	// mytodo : 없으면 스왑아웃
+	for (struct list_elem *e = list_begin(&frame_table); e != list_end(&frame_table); e = list_next(e)) {
+		
+	}
+
 	return frame;
 }
 
@@ -174,6 +195,7 @@ vm_do_claim_page (struct page *page) {
 /* Initialize new supplemental page table */
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
+	hash_init(&spt->spt_hash, hs_hash_func, hs_less_func, NULL);
 }
 
 /* Copy supplemental page table from src to dst */
@@ -187,4 +209,27 @@ void
 supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
+
+	// mytodo : dirty bit가 1이면 저장공간 내용 수정
+	hash_destroy(&spt->spt_hash, action_func);
+}
+
+
+/*------- Project3 VM -------*/
+/* Custom destructor function to handle page writeback and cleanup. */
+
+void action_func(struct hash_elem *e, void *aux) {
+	struct hash *h = &thread_current()->spt.spt_hash;
+    hash_delete(h, e);
+}
+
+uint64_t hs_hash_func(const struct hash_elem *e, void *aux UNUSED) {
+	const struct page *page = hash_entry(e, struct page, elem);
+	return hash_int(*(uint64_t *)(page->va));
+}
+
+bool hs_less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED) {
+	const struct page *page_a = hash_entry(a, struct page, elem);
+    const struct page *page_b = hash_entry(b, struct page, elem);
+    return *(uint64_t *)(page_a->va) < *(uint64_t *)(page_b->va);
 }

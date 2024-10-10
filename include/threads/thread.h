@@ -4,11 +4,14 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include "threads/interrupt.h"
 
-#ifdef VM
+#include "threads/interrupt.h"
+// #ifdef VM
 #include "vm/vm.h"
-#endif
+// #endif
+
+/*------- Project3 VM -------*/
+#include <hash.h>
 
 #include "threads/synch.h"
 
@@ -94,7 +97,6 @@ typedef int tid_t;
 #define STD_ERR 2
 #define PROCESS_NORM 0
 #define PROCESS_ERR -1
-struct thread *get_thread_by_tid(tid_t tid);
 
 struct thread {
 	/* Owned by thread.c. */
@@ -131,10 +133,10 @@ struct thread {
 	
 	struct file *running;		// minjae's
 // #endif
-#ifdef VM
+// #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
 	struct supplemental_page_table spt;
-#endif
+// #endif
 
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */
@@ -151,6 +153,7 @@ struct sleeping_thread {
 void check_priority();
 void print_ready_list(void);
 static struct list ready_list;
+struct thread *get_thread_by_tid(tid_t tid);
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
