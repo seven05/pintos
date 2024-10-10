@@ -29,6 +29,7 @@
         "list.h": "c",
         "debug.h": "c",
         "vm.h": "c",
-        "malloc.h": "c"
+        "malloc.h": "c",
+        "uninit.h": "c"
     }
 }

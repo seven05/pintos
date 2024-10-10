@@ -225,12 +225,8 @@ thread_create (const char *name, int priority,
 	t->tf.eflags = FLAG_IF;
 	if (strcmp(name, "idle") != 0)
 	{
-// #ifdef USERPROG
+#ifdef USERPROG
 		list_push_back(&thread_current()->children, &t->child_elem);
-// #endif
-		t->recent_cpu = thread_current()->recent_cpu;
-	}
-
 	/*------- PROJECT 2 : USER PROGRAMS -------*/
 	t->fd_table = palloc_get_multiple(PAL_ZERO, FD_PAGES); //FD_PAGE 변수로 선언해줌
 	if (t->fd_table == NULL)
@@ -241,6 +237,10 @@ thread_create (const char *name, int priority,
 	t->fd_table[STD_ERR] = 2;
 	// t->next_fd = 3;
 	/*-----------------------------------------*/
+#endif
+		t->recent_cpu = thread_current()->recent_cpu;
+	}
+
 
 	/* Add to run queue. */
 	thread_unblock (t);
@@ -496,17 +496,14 @@ init_thread (struct thread *t, const char *name, int priority) {
 
 	t->nice = 0;
 	t->recent_cpu = 0;
-	t->next_fd = 3;	//(oom_update)
-// #ifdef USERPROG
+#ifdef USERPROG
 	sema_init(&t->fork_sema, 0);
 	sema_init(&t->wait_sema, 0);
 	sema_init(&t->free_sema, 0);
 	list_init(&t->children);
+	t->next_fd = 3;	//(oom_update)
 	// t->process_status = PROCESS_NORM;
-// #endif
-
-	/*------- Project3 VM -------*/
-	supplemental_page_table_init(&t->spt);
+#endif
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
