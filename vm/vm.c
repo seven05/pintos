@@ -50,7 +50,7 @@ bool
 vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		vm_initializer *init, void *aux) {
 
-	printf("\n------- vm_alloc_page_with_initializer -------\n\n");
+	// printf("\n------- vm_alloc_page_with_initializer -------\n\n");
 	ASSERT (VM_TYPE(type) != VM_UNINIT)
 
 	struct supplemental_page_table *spt = &thread_current ()->spt;
@@ -63,25 +63,24 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		 * TODO: should modify the field after calling the uninit_new. */
 		struct page *page = (struct page *)malloc(sizeof(struct page));
 	
-	typedef bool (*initializerFunc)(struct page *, enum vm_type, void *);
-	initializerFunc initializer = NULL;
+		typedef bool (*initializerFunc)(struct page *, enum vm_type, void *);
+		initializerFunc initializer = NULL;
 
-	switch(VM_TYPE(type)){
-		case VM_ANON:
-			initializer = anon_initializer;
-			break;
-		case VM_FILE:
-			initializer = file_backed_initializer;
-			break;
-			}
-	uninit_new(page, upage, init, type, aux, initializer);
+		switch(VM_TYPE(type)){
+			case VM_ANON:
+				initializer = anon_initializer;
+				break;
+			case VM_FILE:
+				initializer = file_backed_initializer;
+				break;
+		}
+		uninit_new(page, upage, init, type, aux, initializer);
 
-	// page member 초기화
-	page->writable = writable;
-	/* TODO: Insert the page into the spt. */
-	printf("\n------- vm_alloc_page_with_initializer end -------\n\n");
-	return spt_insert_page(spt, page);
-	
+		// page member 초기화
+		page->writable = writable;
+		/* TODO: Insert the page into the spt. */
+		// printf("\n------- vm_alloc_page_with_initializer end -------\n\n");
+		return spt_insert_page(spt, page);
 	}
 err:
 	return false;
@@ -91,13 +90,13 @@ err:
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	/* TODO: Fill this function. */
-	printf("\n------- spt_find_page -------\n\n");
-	struct page *page = (struct page *)malloc(sizeof(struct page));
-	page->va = va;
+	// printf("\n------- spt_find_page -------\n\n");
+	struct page page;
+	page.va = pg_round_down(va);
 
-	struct hash_elem *e = hash_find(&spt->spt_hash, &page->elem);
+	struct hash_elem *e = hash_find(&spt->spt_hash, &page.elem);
 
-	printf("\n------- spt_find_page end -------\n\n");
+	// printf("\n------- spt_find_page end -------\n\n");
 	if (e) {
 		return hash_entry(e, struct page, elem);
 	} else {
@@ -122,6 +121,7 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 
 void
 spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
+	hash_delete(&spt->spt_hash, &page->elem);
 	vm_dealloc_page (page);
 	return true;
 }
@@ -193,14 +193,14 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
     struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
     struct page *page = NULL;
 
-	printf("\n------- vm_try_handle_fault -------\n\n");
+	// printf("\n------- vm_try_handle_fault -------\n\n");
     if (addr == NULL){
-		printf("\naddr == NULL\n\n");
+		// printf("\naddr == NULL\n\n");
         return false;
 	}
 
     if (is_kernel_vaddr(addr)){
-		printf("\nis_kernel_vaddr(addr)\n\n");
+		// printf("\nis_kernel_vaddr(addr)\n\n");
         return false;
 	}
 
@@ -209,17 +209,17 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
         /* TODO: Validate the fault */
         page = spt_find_page(spt, addr);
         if (page == NULL){
-			printf("\npage == NULL\n\n");
+			// printf("\npage == NULL\n\n");
             return false;
 		}
         if (write == 1 && page->writable == 0){ // write 불가능한 페이지에 write 요청한 경우
-		printf("\nwrite == 1 && page->writable == 0\n\n");
+		// printf("\nwrite == 1 && page->writable == 0\n\n");
             return false;
 		}
-		printf("\nnot_present\n\n");
+		// printf("\nnot_present\n\n");
         return vm_do_claim_page(page);
     }
-	printf("\ngooooood\n\n");
+	// printf("\ngooooood\n\n");
     return false;
 }
 
@@ -236,17 +236,17 @@ bool
 vm_claim_page (void *va UNUSED) {
 	/* 역할: 이 함수는 주어진 가상 주소(virtual address)에 대해 페이지를 할당하고, 
 	그에 따른 프레임을 설정하는 역할을 합니다. 페이지 테이블에 새로운 매핑을 설정하여 가상 주소가 물리 메모리의 프레임에 매핑되도록 합니다. */
-	printf("\n------- vm_claim_page -------\n\n");
+	// printf("\n------- vm_claim_page -------\n\n");
 	struct page *page = spt_find_page(&thread_current()->spt, va);
 	/* TODO: Fill this function */
 	// PJ3
 	
 	if (page == NULL) {
-		printf("\n------- vm_claim_page end page == NULL -------\n\n");
+		// printf("\n------- vm_claim_page end page == NULL -------\n\n");
 		return false;
 	}
 
-	printf("\n------- vm_claim_page end good -------\n\n");
+	// printf("\n------- vm_claim_page end good -------\n\n");
 	return vm_do_claim_page (page);
 }
 

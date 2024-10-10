@@ -409,6 +409,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
  * Returns true if successful, false otherwise. */
 static bool
 load (const char *file_name, struct intr_frame *if_) {
+	// printf("\n------- load -------\n\n");
 	struct thread *t = thread_current ();
 	struct ELF ehdr;
 	struct file *file = NULL;
@@ -547,7 +548,6 @@ load (const char *file_name, struct intr_frame *if_) {
     *(void **)if_->rsp = NULL;
 
 	if_->rsp = (uint64_t)if_->rsp;
-	// printf("\n=======\n%p\n=======\n\n", if_->rsp);
 
 	if_->R.rdi = argc;
 	if_->R.rsi = argv;
@@ -562,6 +562,7 @@ done:
 	// if (fn_copy != NULL) {
     //     palloc_free_page(fn_copy);
     // }
+	// printf("\n------- load end -------\n\n");
 	return success;
 }
 
@@ -720,6 +721,7 @@ lazy_load_segment (struct page *page, void *aux) {
     /* TODO: This called when the first page fault occurs on address VA. */
     /* TODO: VA is available when calling this function. */
     // project 3
+	// printf("\n------- lazy_load_segment -------\n\n");
     struct file *file = ((struct container *)aux)->file;
     off_t offsetof = ((struct container *)aux)->offset;
     size_t page_read_bytes = ((struct container *)aux)->page_read_bytes;
@@ -729,11 +731,13 @@ lazy_load_segment (struct page *page, void *aux) {
     // 여기서 file을 page_read_bytes만큼 읽어옴
     if(file_read(file, page->frame->kva, page_read_bytes) != (int)page_read_bytes){
         palloc_free_page(page->frame->kva);
+		// printf("\n------- lazy_load_segment end false -------\n\n");
         return false;
     }
     // 나머지 0을 채우는 용도
     memset(page->frame->kva + page_read_bytes, 0, page_zero_bytes);
 
+	// printf("\n------- lazy_load_segment end true -------\n\n");
     return true;
 }
 /* FILE의 오프셋 OFS에서 시작하여 UPAGE 주소에 세그먼트를 로드합니다.
@@ -754,7 +758,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
     ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
     ASSERT (pg_ofs (upage) == 0);
     ASSERT (ofs % PGSIZE == 0);
-
+	// printf("\n------- load_segment -------\n\n");
     while (read_bytes > 0 || zero_bytes > 0) {
         /* Do calculate how to fill this page.
          * We will read PAGE_READ_BYTES bytes from FILE
@@ -772,8 +776,10 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		container->page_zero_bytes=page_zero_bytes;
 
         if (!vm_alloc_page_with_initializer (VM_ANON, upage,
-                    writable, lazy_load_segment, container))
+                    writable, lazy_load_segment, container)){
+			// printf("\n------- load_segment end false-------\n\n");
             return false;
+					}
 
         /* Advance. */
         read_bytes -= page_read_bytes;
@@ -781,6 +787,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
         upage += PGSIZE;
         ofs += page_read_bytes;	
     }
+	// printf("\n------- load_segment end true-------\n\n");
     return true;
 }
 

@@ -92,7 +92,7 @@ hash_destroy (struct hash *h, hash_action_func *destructor) {
    without inserting NEW. */
 struct hash_elem *
 hash_insert (struct hash *h, struct hash_elem *new) {
-	printf("\n------- hash_insert -------\n\n");
+	// printf("\n------- hash_insert -------\n\n");
 	struct list *bucket = find_bucket (h, new);
 	struct hash_elem *old = find_elem (h, bucket, new);
 
@@ -101,7 +101,7 @@ hash_insert (struct hash *h, struct hash_elem *new) {
 
 	rehash (h);
 
-	printf("\n------- hash_insert end -------\n\n");
+	// printf("\n------- hash_insert end -------\n\n");
 	return old;
 }
 
@@ -125,7 +125,7 @@ hash_replace (struct hash *h, struct hash_elem *new) {
    null pointer if no equal element exists in the table. */
 struct hash_elem *
 hash_find (struct hash *h, struct hash_elem *e) {
-	printf("\n------- hash_find -------\n\n");
+	// printf("\n------- hash_find -------\n\n");
 	return find_elem (h, find_bucket (h, e), e);
 }
 
@@ -284,9 +284,9 @@ hash_int (int i) {
 /* Returns the bucket in H that E belongs in. */
 static struct list *
 find_bucket (struct hash *h, struct hash_elem *e) {
-	printf("\n------- find_bucket -------\n\n");
+	// printf("\n------- find_bucket -------\n\n");
 	size_t bucket_idx = h->hash (e, h->aux) & (h->bucket_cnt - 1);
-	printf("\n------- find_bucket end -------\n\n");
+	// printf("\n------- find_bucket end -------\n\n");
 	return &h->buckets[bucket_idx];
 }
 
@@ -295,15 +295,15 @@ find_bucket (struct hash *h, struct hash_elem *e) {
 static struct hash_elem *
 find_elem (struct hash *h, struct list *bucket, struct hash_elem *e) {
 	struct list_elem *i;
-	printf("\n------- find_elem -------\n\n");
+	// printf("\n------- find_elem -------\n\n");
 	for (i = list_begin (bucket); i != list_end (bucket); i = list_next (i)) {
 		struct hash_elem *hi = list_elem_to_hash_elem (i);
 		if (!h->less (hi, e, h->aux) && !h->less (e, hi, h->aux)){
-			printf("\n------- find_elem end hi -------\n\n");
+			// printf("\n------- find_elem end hi -------\n\n");
 			return hi;
 		}
 	}
-	printf("\n------- find_elem end NULL -------\n\n");
+	// printf("\n------- find_elem end NULL -------\n\n");
 	return NULL;
 }
 
