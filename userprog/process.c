@@ -301,6 +301,7 @@ process_exit (void) {
 	palloc_free_multiple(curr->fd_table, FD_PAGES);
 	file_close(curr->running); //minjae's
 	process_cleanup();
+	// mytodo : hash_destroy() 필요? 
 
 	sema_up(&curr->wait_sema); // 끝나고 기다리는 부모한테 세마포 넘겨줌
 	sema_down(&curr->free_sema); // 부모가 자식 free하고 세마포 넘길 때까지 기다림
