@@ -49,4 +49,14 @@ anon_swap_out (struct page *page) {
 static void
 anon_destroy (struct page *page) {
 	struct anon_page *anon_page = &page->anon;
+	
+	// mytodo : destroy코드 필요? (있든 없든 결과는 같음. <24.10.11 anonymous 작성중>)
+
+	// /** Project 3: Anonymous Page - 점거중인 frame 삭제 */
+    // if (page->frame) {
+    //     list_remove(&page->frame->elem);
+    //     page->frame->page = NULL;
+    //     free(page->frame);
+    //     page->frame = NULL;
+    //
 }

@@ -282,9 +282,46 @@ supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
 }
 
 /* Copy supplemental page table from src to dst */
-bool
-supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
-		struct supplemental_page_table *src UNUSED) {
+bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
+                                  struct supplemental_page_table *src UNUSED)
+{
+    struct hash_iterator i;
+    hash_first(&i, &src->spt_hash);
+    while (hash_next(&i))
+    {
+        // src_page 정보
+        struct page *src_page = hash_entry(hash_cur(&i), struct page, elem);
+        enum vm_type type = src_page->operations->type;
+        void *upage = src_page->va;
+        bool writable = src_page->writable;
+	
+		// mytodo: uninit을 복사할때 anon으로 하는 이유?
+        /* 1) type이 uninit이면 */
+        if (type == VM_UNINIT)
+        { // uninit page 생성 & 초기화
+            vm_initializer *init = src_page->uninit.init;
+            void *aux = src_page->uninit.aux;
+            vm_alloc_page_with_initializer(VM_ANON, upage, writable, init, aux);
+            continue;
+        }
+
+        /* 2) type이 uninit이 아니면 */
+        if (!vm_alloc_page(type, upage, writable)) // uninit page 생성 & 초기화
+            // init이랑 aux는 Lazy Loading에 필요함
+            // 지금 만드는 페이지는 기다리지 않고 바로 내용을 넣어줄 것이므로 필요 없음
+            return false;
+
+        // vm_claim_page으로 요청해서 매핑 & 페이지 타입에 맞게 초기화
+        if (!vm_claim_page(upage))
+            return false;
+
+        // 매핑된 프레임에 내용 로딩
+        struct page *dst_page = spt_find_page(dst, upage);
+
+		// mytodo: 부모 프로세스와 자식 프로세스가 같은 물리 메모리를 바라보는 이유?
+        memcpy(dst_page->frame->kva, src_page->frame->kva, PGSIZE);
+    }
+    return true;
 }
 
 /* Free the resource hold by the supplemental page table */
@@ -295,6 +332,7 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 
 	// mytodo : dirty bit가 1이면 저장공간 내용 수정
 	// hash_destroy(&spt->spt_hash, action_func);
+	hash_clear(&spt->spt_hash, action_func);
 }
 
 
@@ -302,8 +340,9 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 /* Custom destructor function to handle page writeback and cleanup. */
 
 void action_func(struct hash_elem *e, void *aux) {
-	struct hash *h = &thread_current()->spt.spt_hash;
-    hash_delete(h, e);
+	struct page *page = hash_entry(e, struct page, elem);
+	destroy(page);
+	free(page);
 }
 
 uint64_t hs_hash_func(const struct hash_elem *e, void *aux UNUSED) {
