@@ -85,6 +85,8 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	uint64_t arg4 = f->R.r10;
 	uint64_t arg5 = f->R.r8;
 	uint64_t arg6 = f->R.r9;
+
+	thread_current()->stack_pointer = f->rsp;
 	switch (f->R.rax)
 	{
 		case SYS_HALT:							//  0 운영체제 종료

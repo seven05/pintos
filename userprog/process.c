@@ -99,7 +99,6 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	struct thread *curr = thread_current();
 
 	// struct intr_frame *f = (pg_round_up(rrsp()) - sizeof(struct intr_frame)); //(oom_update)
-	// memcpy(&parent->syscall_tf, f, sizeof(struct intr_frame));
 	memcpy (&curr->syscall_tf, if_, sizeof(struct intr_frame));
 
 	tid_t child_tid = thread_create(name, PRI_DEFAULT, __do_fork, (void *)curr);

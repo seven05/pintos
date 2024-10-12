@@ -5,6 +5,7 @@
 
 /*------- Project3 VM -------*/
 #include <hash.h>
+#define STACK_LIMIT USER_STACK - (1<<20)
 
 enum vm_type {
 	/* page not initialized */

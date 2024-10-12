@@ -179,6 +179,15 @@ vm_get_frame (void) {
 /* Growing the stack. */
 static void
 vm_stack_growth (void *addr UNUSED) {
+	bool success = false;
+	void *stack_max = (void *)((uint8_t *)thread_current()->stack_max - PGSIZE);
+	
+	if(vm_alloc_page(VM_ANON | VM_MARKER_0, stack_max, 1)){
+        success = vm_claim_page(stack_max);
+        if(success){
+            thread_current()->stack_max = stack_max;
+        }
+    }
 }
 
 /* Handle the fault on write_protected page */
@@ -203,6 +212,16 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		// printf("\nis_kernel_vaddr(addr)\n\n");
         return false;
 	}
+
+	// mytodo : stack_pointer - 8 <= addr 이게 뭔솔?
+	void *stack_pointer = user ? f->rsp : thread_current()->stack_pointer;
+	if (stack_pointer - 8 <= addr && addr >= STACK_LIMIT && addr <= USER_STACK) {
+		vm_stack_growth(addr);
+		return true;
+	}
+	// if (thread_current()->stack_max > addr) {
+	// 	vm_stack_growth(addr);
+	// }
 
     if (not_present) // 접근한 메모리의 physical page가 존재하지 않은 경우
     {
