@@ -301,46 +301,67 @@ supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
 }
 
 /* Copy supplemental page table from src to dst */
-bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
-                                  struct supplemental_page_table *src UNUSED)
-{
-    struct hash_iterator i;
-    hash_first(&i, &src->spt_hash);
-    while (hash_next(&i))
-    {
-        // src_page 정보
-        struct page *src_page = hash_entry(hash_cur(&i), struct page, elem);
+bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED, struct supplemental_page_table *src UNUSED) {
+    struct hash_iterator iter;
+    struct page *dst_page;
+    struct aux *aux;
+
+    hash_first(&iter, &src->spt_hash);
+
+    while (hash_next(&iter)) {
+        struct page *src_page = hash_entry(hash_cur(&iter), struct page, elem);
         enum vm_type type = src_page->operations->type;
         void *upage = src_page->va;
         bool writable = src_page->writable;
-	
-		// mytodo: uninit을 복사할때 anon으로 하는 이유?
-        /* 1) type이 uninit이면 */
-        if (type == VM_UNINIT)
-        { // uninit page 생성 & 초기화
-            vm_initializer *init = src_page->uninit.init;
-            void *aux = src_page->uninit.aux;
-            vm_alloc_page_with_initializer(VM_ANON, upage, writable, init, aux);
-            continue;
+
+        switch (type) {
+            case VM_UNINIT:  // src 타입이 initialize 되지 않았을 경우
+				// mytodo : 어째서 VM_UNINIT 타입을 다른 타입으로 변경한 후에 초기화 하는지 의문
+                if (!vm_alloc_page_with_initializer(page_get_type(src_page), upage, writable, src_page->uninit.init, src_page->uninit.aux)){
+                    goto err;
+				}
+                break;
+
+            // case VM_FILE:  // src 타입이 FILE인 경우
+            //     if (!vm_alloc_page_with_initializer(type, upage, writable, NULL, &src_page->file))
+            //         goto err;
+
+            //     dst_page = spt_find_page(dst, upage);  // 대응하는 물리 메모리 데이터 복제
+            //     if (!file_backed_initializer(dst_page, type, NULL))
+            //         goto err;
+
+            //     dst_page->frame = src_page->frame;
+            //     if (!pml4_set_page(thread_current()->pml4, dst_page->va, src_page->frame->kva, src_page->writable))
+            //         goto err;
+
+            //     break;
+
+            case VM_ANON:                                   // src 타입이 anon인 경우
+                if (!vm_alloc_page(type, upage, writable)){  // UNINIT 페이지 생성 및 초기화
+                    goto err;
+				}
+                if (!vm_claim_page(upage)){  // 물리 메모리와 매핑하고 initialize
+                    goto err;
+				}
+                struct page *dst_page = spt_find_page(dst, upage);  // 대응하는 물리 메모리 데이터 복제
+                memcpy(dst_page->frame->kva, src_page->frame->kva, PGSIZE);
+
+                /** Project 3: Copy On Write (Extra) - 메모리에 load된 데이터를 write하지 않는 이상 똑같은 메모리를 사용하는데
+                 *  2개의 복사본을 만드는 것은 메모리가 낭비가 난다. 따라서 write 요청이 들어왔을 때만 해당 페이지에 대한 물리메모리를
+                 *  할당하고 맵핑하면 된다. */
+                // if (!vm_copy_claim_page(dst, upage, src_page->frame->kva, writable))  // 물리 메모리와 매핑하고 initialize
+                //     goto err;
+
+                break;
+
+            default:
+                goto err;
         }
-
-        /* 2) type이 uninit이 아니면 */
-        if (!vm_alloc_page(type, upage, writable)) // uninit page 생성 & 초기화
-            // init이랑 aux는 Lazy Loading에 필요함
-            // 지금 만드는 페이지는 기다리지 않고 바로 내용을 넣어줄 것이므로 필요 없음
-            return false;
-
-        // vm_claim_page으로 요청해서 매핑 & 페이지 타입에 맞게 초기화
-        if (!vm_claim_page(upage))
-            return false;
-
-        // 매핑된 프레임에 내용 로딩
-        struct page *dst_page = spt_find_page(dst, upage);
-
-		// mytodo: 부모 프로세스와 자식 프로세스가 같은 물리 메모리를 바라보는 이유?
-        memcpy(dst_page->frame->kva, src_page->frame->kva, PGSIZE);
     }
     return true;
+
+err:
+    return false;
 }
 
 /* Free the resource hold by the supplemental page table */
