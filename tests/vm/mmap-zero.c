@@ -16,7 +16,7 @@ test_main (void)
   CHECK (create ("empty", 0), "create empty file \"empty\"");
   CHECK ((handle = open ("empty")) > 1, "open \"empty\"");
 
-  /* Calling mmap() might succeed or fail.  We don't care. */
+  /* Calling  might succeed or fail.  We don't care. */
   msg ("mmap \"empty\"");
   mmap (data, 0, 0, handle, 0);
 

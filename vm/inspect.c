@@ -8,8 +8,10 @@
 
 static void
 inspect (struct intr_frame *f) {
+	printf("\n------- inspect -------");
 	const void *va = (const void *) f->R.rax;
 	f->R.rax = PTE_ADDR (pml4_get_page (thread_current ()->pml4, va));
+	printf("\n------- inspect end -------");
 }
 
 /* Tool for testing vm component. Calling this function via int 0x42.
@@ -19,5 +21,7 @@ inspect (struct intr_frame *f) {
  *   @RAX - Physical address that mmaped to input. */
 void
 register_inspect_intr (void) {
+	printf("\n------- register_inspect_intr -------");
 	intr_register_int (0x42, 3, INTR_OFF, inspect, "Inspect Virtual Memory");
+	printf("\n------- register_inspect_intr end -------");
 }
