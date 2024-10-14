@@ -10,9 +10,9 @@ int process_wait (tid_t);
 void process_exit (void);
 void process_activate (struct thread *next);
 struct container{
-    struct file *file;
-    off_t offset;
-    size_t page_read_bytes;
-    size_t page_zero_bytes;
+	struct file *file;
+	off_t offset;
+	size_t page_read_bytes;
+	size_t page_zero_bytes;
 };
 #endif /* userprog/process.h */

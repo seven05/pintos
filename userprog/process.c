@@ -45,7 +45,7 @@ process_init (void) {
  * Notice that THIS SHOULD BE CALLED ONCE. */
 tid_t
 process_create_initd (const char *file_name) {
-	printf("\n------- process_create_initd -------");
+	// /**/printf("\n------- process_create_initd -------");
 	char *fn_copy;
 	tid_t tid;
 
@@ -85,7 +85,7 @@ initd (void *f_name) {
 	process_init ();
 	if (process_exec (f_name) < 0)
 		PANIC("Fail to launch initd\n");
-	printf("\n------- process_create_initd end -------");
+	// /**/printf("\n------- process_create_initd end -------");
 	NOT_REACHED ();
 }
 
@@ -223,7 +223,7 @@ error:
 // 공백을 기준으로 여러 단어로 나누어지게 만드세요.
 int
 process_exec (void *f_name) {
-	printf("\n------- process_exec -------");
+	// /**/printf("\n------- process_exec -------");
 	char *file_name = f_name;	
 	bool success;
 	// printf("f_name3: %s\n" ,*(&f_name));
@@ -252,7 +252,7 @@ process_exec (void *f_name) {
 
 	/* Start switched process. */
 	do_iret (&_if);
-	printf("\n------- process_exec end -------");
+	// /**/printf("\n------- process_exec end -------");
 	NOT_REACHED ();
 }
 
@@ -309,7 +309,7 @@ process_exit (void) {
 /* Free the current process's resources. */
 static void
 process_cleanup (void) {
-	printf("\n------- process_cleanup -------");
+	// /**/printf("\n------- process_cleanup -------");
 	struct thread *curr = thread_current ();
 
 #ifdef VM
@@ -332,7 +332,7 @@ process_cleanup (void) {
 		pml4_activate (NULL);
 		pml4_destroy (pml4);
 	}
-	printf("\n------- process_cleanup end -------");
+	// /**/printf("\n------- process_cleanup end -------");
 }
 
 /* Sets up the CPU for running user code in the nest thread.
@@ -411,7 +411,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
  * Returns true if successful, false otherwise. */
 static bool
 load (const char *file_name, struct intr_frame *if_) {
-	printf("\n------- load -------");
+	// /**/printf("\n------- load -------");
 	struct thread *t = thread_current ();
 	struct ELF ehdr;
 	struct file *file = NULL;
@@ -562,9 +562,10 @@ done:
 	/* We arrive here whether the load is successful or not. */
 	// file_close (file);		// minjae's 경우 없앰
 	// if (fn_copy != NULL) {
-    //     palloc_free_page(fn_copy);
-    // }
-	printf("\n------- load end -------");
+	//     palloc_free_page(fn_copy);
+	// }
+	// /**/printf("\n------- load end -------\n");
+	// /**/printf("\n==============================================================\n");
 	return success;
 }
 
@@ -719,28 +720,28 @@ validate_segment (const struct Phdr *phdr, struct file *file) {
 
 static bool
 lazy_load_segment (struct page *page, void *aux) {
-    /* TODO: Load the segment from the file */
-    /* TODO: This called when the first page fault occurs on address VA. */
-    /* TODO: VA is available when calling this function. */
-    // project 3
-	printf("\n------- lazy_load_segment -------");
-    struct file *file = ((struct container *)aux)->file;
-    off_t offsetof = ((struct container *)aux)->offset;
-    size_t page_read_bytes = ((struct container *)aux)->page_read_bytes;
-    size_t page_zero_bytes = PGSIZE - page_read_bytes;
+	/* TODO: Load the segment from the file */
+	/* TODO: This called when the first page fault occurs on address VA. */
+	/* TODO: VA is available when calling this function. */
+	// project 3
+	// /**/printf("\n------- lazy_load_segment -------");
+	struct file *file = ((struct container *)aux)->file;
+	off_t offsetof = ((struct container *)aux)->offset;
+	size_t page_read_bytes = ((struct container *)aux)->page_read_bytes;
+	size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-    file_seek(file, offsetof);
-    // 여기서 file을 page_read_bytes만큼 읽어옴
-    if(file_read(file, page->frame->kva, page_read_bytes) != (int)page_read_bytes){
-        palloc_free_page(page->frame->kva);
-		printf("\n------- lazy_load_segment end false -------");
-        return false;
-    }
-    // 나머지 0을 채우는 용도
-    memset(page->frame->kva + page_read_bytes, 0, page_zero_bytes);
+	file_seek(file, offsetof);
+	// 여기서 file을 page_read_bytes만큼 읽어옴
+	if(file_read(file, page->frame->kva, page_read_bytes) != (int)page_read_bytes){
+		palloc_free_page(page->frame->kva);
+		// /**/printf("\n------- lazy_load_segment end false -------");
+		return false;
+	}
+	// 나머지 0을 채우는 용도
+	memset(page->frame->kva + page_read_bytes, 0, page_zero_bytes);
 
-	printf("\n------- lazy_load_segment end true -------");
-    return true;
+	// /**/printf("\n------- lazy_load_segment end true -------");
+	return true;
 }
 /* FILE의 오프셋 OFS에서 시작하여 UPAGE 주소에 세그먼트를 로드합니다.
  * 총 READ_BYTES + ZERO_BYTES 만큼의 가상 메모리가 초기화됩니다. 이는 다음과 같이 이루어집니다:
@@ -757,40 +758,40 @@ lazy_load_segment (struct page *page, void *aux) {
 static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
         uint32_t read_bytes, uint32_t zero_bytes, bool writable) {
-    ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
-    ASSERT (pg_ofs (upage) == 0);
-    ASSERT (ofs % PGSIZE == 0);
-	printf("\n------- load_segment -------");
-    while (read_bytes > 0 || zero_bytes > 0) {
-        /* Do calculate how to fill this page.
-         * We will read PAGE_READ_BYTES bytes from FILE
-         * and zero the final PAGE_ZERO_BYTES bytes. */
-        size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-        size_t page_zero_bytes = PGSIZE - page_read_bytes;
+	ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
+	ASSERT (pg_ofs (upage) == 0);
+	ASSERT (ofs % PGSIZE == 0);
+	// /**/printf("\n------- load_segment -------");
+	while (read_bytes > 0 || zero_bytes > 0) {
+		/* Do calculate how to fill this page.
+			* We will read PAGE_READ_BYTES bytes from FILE
+			* and zero the final PAGE_ZERO_BYTES bytes. */
+		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+		size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-        /* TODO: Set up aux to pass information to the lazy_load_segment. */
-        // project 3
-        // void *aux = NULL;
-        struct container *container = (struct container *)malloc(sizeof(struct container));
-        container->file = file;
-        container->page_read_bytes = page_read_bytes;
-        container->offset = ofs;
+		/* TODO: Set up aux to pass information to the lazy_load_segment. */
+		// project 3
+		// void *aux = NULL;
+		struct container *container = (struct container *)malloc(sizeof(struct container));
+		container->file = file;
+		container->page_read_bytes = page_read_bytes;
+		container->offset = ofs;
 		container->page_zero_bytes=page_zero_bytes;
 
-        if (!vm_alloc_page_with_initializer (VM_ANON, upage,
-                    writable, lazy_load_segment, container)){
-			printf("\n------- load_segment end false-------");
-            return false;
-					}
+		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
+					writable, lazy_load_segment, container)){
+			// /**/printf("\n------- load_segment end false -------");
+			return false;
+		}
 
-        /* Advance. */
-        read_bytes -= page_read_bytes;
-        zero_bytes -= page_zero_bytes;
-        upage += PGSIZE;
-        ofs += page_read_bytes;	
-    }
-	printf("\n------- load_segment end true-------");
-    return true;
+		/* Advance. */
+		read_bytes -= page_read_bytes;
+		zero_bytes -= page_zero_bytes;
+		upage += PGSIZE;
+		ofs += page_read_bytes;	
+	}
+	// /**/printf("\n------- load_segment end true -------");
+	return true;
 }
 
 /* USER_STACK에 스택의 PAGE를 만듭니다. 성공하면 true를 반환합니다. */
@@ -803,13 +804,13 @@ setup_stack (struct intr_frame *if_) {
 	 * TODO: 성공하면 rsp를 적절히 설정하세요.
 	 * TODO: 페이지가 스택임을 표시해야 합니다. */
 	/* TODO: 여기에 코드를 작성하세요. */
-    if(vm_alloc_page(VM_ANON | VM_MARKER_0, stack_max, 1)){
-        success = vm_claim_page(stack_max);
-        if(success){
-            if_->rsp = USER_STACK;
-            thread_current()->stack_max = stack_max;
-        }
-    }
+	if(vm_alloc_page(VM_ANON | VM_MARKER_0, stack_max, 1)){
+		success = vm_claim_page(stack_max);
+		if(success){
+			if_->rsp = USER_STACK;
+			thread_current()->stack_max = stack_max;
+		}
+	}
 
 
 	return success;

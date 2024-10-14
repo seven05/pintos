@@ -20,53 +20,53 @@ static const struct page_operations anon_ops = {
 /* Initialize the data for anonymous pages */
 void
 vm_anon_init (void) {
-	printf("\n------- vm_anon_init -------");
+	// /**/printf("\n------- vm_anon_init -------");
 	/* TODO: Set up the swap_disk. */
 	swap_disk = NULL;
-	printf("\n------- vm_anon_init end -------");
+	// /**/printf("\n------- vm_anon_init end -------");
 }
 
 /* Initialize the file mapping */
 bool
 anon_initializer (struct page *page, enum vm_type type, void *kva) {
-	printf("\n------- anon_initializer -------");
+	// /**/printf("\n------- anon_initializer -------");
 	/* Set up the handler */
 	page->operations = &anon_ops;
 
 	struct anon_page *anon_page = &page->anon;
-	printf("\n------- anon_initializer end -------");
+	// /**/printf("\n------- anon_initializer end -------");
 }
 
 /* Swap in the page by read contents from the swap disk. */
 static bool
 anon_swap_in (struct page *page, void *kva) {
-	printf("\n------- anon_swap_in -------");
+	// /**/printf("\n------- anon_swap_in -------");
 	struct anon_page *anon_page = &page->anon;
-	printf("\n------- anon_swap_in end -------");
+	// /**/printf("\n------- anon_swap_in end -------");
 }
 
 /* Swap out the page by writing contents to the swap disk. */
 static bool
 anon_swap_out (struct page *page) {
-	printf("\n------- anon_swap_out -------");
+	// /**/printf("\n------- anon_swap_out -------");
 	struct anon_page *anon_page = &page->anon;
-	printf("\n------- anon_swap_out end -------");
+	// /**/printf("\n------- anon_swap_out end -------");
 }
 
 /* Destroy the anonymous page. PAGE will be freed by the caller. */
 static void
 anon_destroy (struct page *page) {
-	printf("\n------- anon_destroy -------");
+	// /**/printf("\n------- anon_destroy -------");
 	struct anon_page *anon_page = &page->anon;
 	
 	// mytodo : destroy코드 필요? (있든 없든 결과는 같음. <24.10.11 anonymous 작성중>)
 
 	// /** Project 3: Anonymous Page - 점거중인 frame 삭제 */
-    // if (page->frame) {
-    //     list_remove(&page->frame->elem);
-    //     page->frame->page = NULL;
-    //     free(page->frame);
-    //     page->frame = NULL;
-    //
-	printf("\n------- anon_destroy end -------");
+	// if (page->frame) {
+	// 	list_remove(&page->frame->elem);
+	// 	page->frame->page = NULL;
+	// 	free(page->frame);
+	// 	page->frame = NULL;
+
+	// /**/printf("\n------- anon_destroy end -------");
 }

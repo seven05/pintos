@@ -42,7 +42,12 @@ struct inode {
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
+#ifndef VM
 void user_memory_valid(void *r);
+#else
+struct page *user_memory_valid(void *r);
+void check_valid_buffer(void *buffer, size_t size, bool writable);
+#endif
 struct file *get_file_by_descriptor(int fd);
 struct lock syscall_lock;
 
@@ -153,6 +158,15 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_CLOSE:							//  13 파일 닫기
 			// printf("SYS_CLOSE\n");
 			close(arg1);
+			break;
+		case SYS_MMAP:
+			// /**/printf("\nSYS_MMAP\n");
+			f->R.rax=mmap((void *)arg1, (size_t)arg2, (int)arg3, (int)arg4, (off_t)arg5);
+			break;
+		case SYS_MUNMAP:
+			// /**/printf("\nSYS_MUNMAP\n");
+			user_memory_valid((void *)arg1);
+			munmap((void *)arg1);
 			break;
 		default:
 			// printf("default;\n");
@@ -329,10 +343,20 @@ void user_memory_valid(void *r){
 	}
 }
 
-struct file *get_file_by_descriptor(int fd)
-{
+struct file *get_file_by_descriptor(int fd){
 	if (fd < 3 || fd > 128)
 		return NULL;
 	struct thread *t = thread_current();
 	return t->fd_table[fd];
+}
+
+void *mmap (void *addr, size_t length, int writable, int fd, off_t offset){
+	lock_acquire(&syscall_lock);
+	void *result = do_mmap(addr, length, writable, get_file_by_descriptor(fd), offset);
+	lock_release(&syscall_lock);
+	return result;
+}
+
+void munmap (void *addr){
+	do_munmap(addr);
 }

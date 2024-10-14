@@ -1,0 +1,567 @@
+------- vm_init
+    ------- vm_anon_init
+    ------- vm_anon_init end
+    ------- vm_file_init
+    ------- vm_file_init end
+    ------- register_inspect_intr
+    ------- register_inspect_intr end
+------- vm_init end
+Boot complete.
+Putting 'fork-once' into the file system...
+Executing 'fork-once':
+
+------- process_create_initd
+    ------- supplemental_page_table_init
+        ------- hash_init
+            ------- hash_clear
+            ------- hash_clear end
+        ------- hash_init end (h->buckets != NULL)
+    ------- supplemental_page_table_init end
+    ------- process_exec
+        ------- process_cleanup
+            ------- supplemental_page_table_kill
+                ------- hash_clear
+                ------- hash_clear end
+            ------- supplemental_page_table_kill end
+        ------- process_cleanup end
+        ------- load
+            ------- load_segment
+                ------- vm_alloc_page_with_initializer
+                    ------- spt_find_page
+                        ------- hash_find
+                    ------- spt_find_page end hash_elem null
+                    ------- uninit_new
+                    ------- uninit_new end
+                ------- vm_alloc_page_with_initializer end
+                ------- spt_insert_page
+                    ------- hash_insert
+                    ------- hash_insert end
+                ------- spt_insert_page end
+            ------- load_segment end true
+
+            ------- load_segment
+                ------- vm_alloc_page_with_initializer
+                    ------- spt_find_page
+                        ------- hash_find
+                    ------- spt_find_page end hash_elem null
+                    ------- uninit_new
+                    ------- uninit_new end
+                ------- vm_alloc_page_with_initializer end
+                ------- spt_insert_page
+                    ------- hash_insert
+                    ------- hash_insert end
+                ------- spt_insert_page end
+                ------- vm_alloc_page_with_initializer
+                    ------- spt_find_page
+                        ------- hash_find
+                    ------- spt_find_page end hash_elem null
+                    ------- uninit_new
+                    ------- uninit_new end
+                ------- vm_alloc_page_with_initializer end
+                ------- spt_insert_page
+                    ------- hash_insert
+                    ------- hash_insert end
+                ------- spt_insert_page end
+                ------- vm_alloc_page_with_initializer
+                    ------- spt_find_page
+                        ------- hash_find
+                    ------- spt_find_page end hash_elem null
+                    ------- uninit_new
+                    ------- uninit_new end
+                ------- vm_alloc_page_with_initializer end
+                ------- spt_insert_page
+                    ------- hash_insert
+                    ------- hash_insert end
+                ------- spt_insert_page end
+                ------- vm_alloc_page_with_initializer
+                    ------- spt_find_page
+                        ------- hash_find
+                    ------- spt_find_page end hash_elem null
+                    ------- uninit_new
+                    ------- uninit_new end
+                ------- vm_alloc_page_with_initializer end
+                ------- spt_insert_page
+                    ------- hash_insert
+                    ------- hash_insert end
+                ------- spt_insert_page end
+                ------- vm_alloc_page_with_initializer
+                    ------- spt_find_page
+                        ------- hash_find
+                    ------- spt_find_page end hash_elem null
+                    ------- uninit_new
+                    ------- uninit_new end
+                ------- vm_alloc_page_with_initializer end
+                ------- spt_insert_page
+                    ------- hash_insert
+                    ------- hash_insert end
+                ------- spt_insert_page end
+            ------- load_segment end true
+
+            ------- load_segment
+                ------- vm_alloc_page_with_initializer
+                    ------- spt_find_page
+                        ------- hash_find
+                    ------- spt_find_page end hash_elem null
+                    ------- uninit_new
+                    ------- uninit_new end
+                ------- vm_alloc_page_with_initializer end
+                ------- spt_insert_page
+                    ------- hash_insert
+                    ------- hash_insert end
+                ------- spt_insert_page end
+                ------- vm_alloc_page_with_initializer
+                ------- spt_find_page
+                    ------- hash_find
+                ------- spt_find_page end hash_elem null
+                ------- uninit_new
+                ------- uninit_new end
+                ------- vm_alloc_page_with_initializer end
+                ------- spt_insert_page
+                    ------- hash_insert
+                    ------- hash_insert end
+                ------- spt_insert_page end
+            ------- load_segment end true
+            
+            ------- vm_alloc_page_with_initializer
+            ------- spt_find_page
+                ------- hash_find
+            ------- spt_find_page end hash_elem null
+            ------- uninit_new
+            ------- uninit_new end
+            ------- vm_alloc_page_with_initializer end
+            ------- spt_insert_page
+                ------- hash_insert
+                ------- hash_insert end
+            ------- spt_insert_page end
+            ------- vm_claim_page
+                ------- spt_find_page
+                    ------- hash_find
+                ------- spt_find_page end hash_elem not null
+            ------- vm_claim_page end
+            ------- vm_do_claim_page
+                ------- vm_get_frame
+                ------- vm_get_frame end
+            ------- vm_do_claim_page end page->frame->kva
+            ------- uninit_initialize
+            ------- uninit_initialize end
+            ------- anon_initializer
+            ------- anon_initializer end
+        ------- load end
+
+
+------- vm_try_handle_fault
+    ------- spt_find_page
+        ------- hash_find
+    ------- spt_find_page end hash_elem not null
+------- vm_try_handle_fault end (not_present)
+------- vm_do_claim_page
+    ------- vm_get_frame
+    ------- vm_get_frame end
+------- vm_do_claim_page end page->frame->kva
+------- uninit_initialize
+------- uninit_initialize end
+------- anon_initializer
+------- anon_initializer end
+------- lazy_load_segment
+------- lazy_load_segment end true
+
+------- vm_try_handle_fault
+    ------- spt_find_page
+        ------- hash_find
+    ------- spt_find_page end hash_elem not null
+------- vm_try_handle_fault end (not_present)
+------- vm_do_claim_page
+    ------- vm_get_frame
+    ------- vm_get_frame end
+------- vm_do_claim_page end page->frame->kva
+------- uninit_initialize
+------- uninit_initialize end
+------- anon_initializer
+------- anon_initializer end
+------- lazy_load_segment
+------- lazy_load_segment end true
+
+------- vm_try_handle_fault
+    ------- spt_find_page
+        ------- hash_find
+    ------- spt_find_page end hash_elem not null
+------- vm_try_handle_fault end (not_present)
+------- vm_do_claim_page
+    ------- vm_get_frame
+    ------- vm_get_frame end
+------- vm_do_claim_page end page->frame->kva
+------- uninit_initialize
+------- uninit_initialize end
+------- anon_initializer
+------- anon_initializer end
+------- lazy_load_segment
+------- lazy_load_segment end true
+
+------- vm_try_handle_fault
+    ------- spt_find_page
+        ------- hash_find
+    ------- spt_find_page end hash_elem not null
+------- vm_try_handle_fault end (not_present)
+------- vm_do_claim_page
+    ------- vm_get_frame
+    ------- vm_get_frame end
+------- vm_do_claim_page end page->frame->kva
+------- uninit_initialize
+------- uninit_initialize end
+------- anon_initializer
+------- anon_initializer end
+------- lazy_load_segment
+------- lazy_load_segment end true
+
+------- vm_try_handle_fault
+    ------- spt_find_page
+        ------- hash_find
+    ------- spt_find_page end hash_elem not null
+------- vm_try_handle_fault end (not_present)
+------- vm_do_claim_page
+    ------- vm_get_frame
+    ------- vm_get_frame end
+------- vm_do_claim_page end page->frame->kva
+------- uninit_initialize
+------- uninit_initialize end
+------- anon_initializer
+------- anon_initializer end
+------- lazy_load_segment
+------- lazy_load_segment end true
+
+------- vm_try_handle_fault
+    ------- spt_find_page
+        ------- hash_find
+    ------- spt_find_page end hash_elem not null
+------- vm_try_handle_fault end (not_present)
+------- vm_do_claim_page
+    ------- vm_get_frame
+    ------- vm_get_frame end
+------- vm_do_claim_page end page->frame->kva
+------- uninit_initialize
+------- uninit_initialize end
+------- anon_initializer
+------- anon_initializer end
+------- lazy_load_segment
+------- lazy_load_segment end true
+(fork-once) begin
+
+------- vm_try_handle_fault
+    ------- spt_find_page
+        ------- hash_find
+    ------- spt_find_page end hash_elem not null
+------- vm_try_handle_fault end (not_present)
+------- vm_do_claim_page
+    ------- vm_get_frame
+    ------- vm_get_frame end
+------- vm_do_claim_page end page->frame->kva
+------- uninit_initialize
+------- uninit_initialize end
+------- anon_initializer
+------- anon_initializer end
+------- lazy_load_segment
+------- lazy_load_segment end true
+
+------- supplemental_page_table_init
+    ------- hash_init
+        ------- hash_clear
+        ------- hash_clear end
+    ------- hash_init end (h->buckets != NULL)
+------- supplemental_page_table_init end
+
+------- supplemental_page_table_copy
+    ------- page_get_type
+    ------- page_get_type end VM_UNINIT
+    ------- vm_alloc_page_with_initializer
+        ------- spt_find_page
+            ------- hash_find
+        ------- spt_find_page end hash_elem null
+        ------- uninit_new
+        ------- uninit_new end
+    ------- vm_alloc_page_with_initializer end
+    ------- spt_insert_page
+        ------- hash_insert
+        ------- hash_insert end
+    ------- spt_insert_page end
+
+    ------- vm_alloc_page_with_initializer
+        ------- spt_find_page
+            ------- hash_find
+        ------- spt_find_page end hash_elem null
+        ------- uninit_new
+        ------- uninit_new end
+    ------- vm_alloc_page_with_initializer end
+    ------- spt_insert_page
+        ------- hash_insert
+        ------- hash_insert end
+    ------- spt_insert_page end
+
+    ------- vm_claim_page
+        ------- spt_find_page
+            ------- hash_find
+        ------- spt_find_page end hash_elem not null
+    ------- vm_claim_page end
+    ------- vm_do_claim_page
+        ------- vm_get_frame
+        ------- vm_get_frame end
+    ------- vm_do_claim_page end page->frame->kva
+    ------- uninit_initialize
+    ------- uninit_initialize end
+    ------- anon_initializer
+    ------- anon_initializer end
+    ------- spt_find_page
+        ------- hash_find
+    ------- spt_find_page end hash_elem not null
+    
+    ------- vm_alloc_page_with_initializer
+        ------- spt_find_page
+            ------- hash_find
+        ------- spt_find_page end hash_elem null
+        ------- uninit_new
+        ------- uninit_new end
+    ------- vm_alloc_page_with_initializer end
+    ------- spt_insert_page
+        ------- hash_insert
+        ------- hash_insert end
+    ------- spt_insert_page end
+
+    ------- vm_claim_page
+        ------- spt_find_page
+            ------- hash_find
+        ------- spt_find_page end hash_elem not null
+    ------- vm_claim_page end
+    ------- vm_do_claim_page
+        ------- vm_get_frame
+        ------- vm_get_frame end
+    ------- vm_do_claim_page end page->frame->kva
+    ------- uninit_initialize
+    ------- uninit_initialize end
+    ------- anon_initializer
+    ------- anon_initializer end
+    ------- spt_find_page
+        ------- hash_find
+    ------- spt_find_page end hash_elem not null
+    ------- vm_alloc_page_with_initializer
+        ------- spt_find_page
+            ------- hash_find
+        ------- spt_find_page end hash_elem null
+        ------- uninit_new
+        ------- uninit_new end
+    ------- vm_alloc_page_with_initializer end
+    ------- spt_insert_page
+        ------- hash_insert
+        ------- hash_insert end
+    ------- spt_insert_page end
+
+    ------- vm_claim_page
+        ------- spt_find_page
+            ------- hash_find
+        ------- spt_find_page end hash_elem not null
+    ------- vm_claim_page end
+    ------- vm_do_claim_page
+        ------- vm_get_frame
+        ------- vm_get_frame end
+    ------- vm_do_claim_page end page->frame->kva
+    ------- uninit_initialize
+    ------- uninit_initialize end
+    ------- anon_initializer
+    ------- anon_initializer end
+    ------- spt_find_page
+        ------- hash_find
+    ------- spt_find_page end hash_elem not null
+    ------- vm_alloc_page_with_initializer
+        ------- spt_find_page
+            ------- hash_find
+        ------- spt_find_page end hash_elem null
+        ------- uninit_new
+        ------- uninit_new end
+    ------- vm_alloc_page_with_initializer end
+    ------- spt_insert_page
+        ------- hash_insert
+        ------- hash_insert end
+    ------- spt_insert_page end
+
+    ------- vm_claim_page
+        ------- spt_find_page
+            ------- hash_find
+        ------- spt_find_page end hash_elem not null
+    ------- vm_claim_page end
+    ------- vm_do_claim_page
+        ------- vm_get_frame
+        ------- vm_get_frame end
+    ------- vm_do_claim_page end page->frame->kva
+    ------- uninit_initialize
+    ------- uninit_initialize end
+    ------- anon_initializer
+    ------- anon_initializer end
+    ------- spt_find_page
+        ------- hash_find
+    ------- spt_find_page end hash_elem not null
+    ------- vm_alloc_page_with_initializer
+        ------- spt_find_page
+            ------- hash_find
+        ------- spt_find_page end hash_elem null
+        ------- uninit_new
+        ------- uninit_new end
+    ------- vm_alloc_page_with_initializer end
+    ------- spt_insert_page
+        ------- hash_insert
+        ------- hash_insert end
+    ------- spt_insert_page end
+
+    ------- vm_claim_page
+        ------- spt_find_page
+            ------- hash_find
+        ------- spt_find_page end hash_elem not null
+    ------- vm_claim_page end
+    ------- vm_do_claim_page
+        ------- vm_get_frame
+        ------- vm_get_frame end
+    ------- vm_do_claim_page end page->frame->kva
+    ------- uninit_initialize
+    ------- uninit_initialize end
+    ------- anon_initializer
+    ------- anon_initializer end
+    ------- spt_find_page
+        ------- hash_find
+    ------- spt_find_page end hash_elem not null
+    ------- vm_alloc_page_with_initializer
+        ------- spt_find_page
+            ------- hash_find
+        ------- spt_find_page end hash_elem null
+        ------- uninit_new
+        ------- uninit_new end
+    ------- vm_alloc_page_with_initializer end
+    ------- spt_insert_page
+        ------- hash_insert
+        ------- hash_insert end
+    ------- spt_insert_page end
+
+    ------- vm_claim_page
+        ------- spt_find_page
+            ------- hash_find
+        ------- spt_find_page end hash_elem not null
+    ------- vm_claim_page end
+    ------- vm_do_claim_page
+        ------- vm_get_frame
+        ------- vm_get_frame end
+    ------- vm_do_claim_page end page->frame->kva
+    ------- uninit_initialize
+    ------- uninit_initialize end
+    ------- anon_initializer
+    ------- anon_initializer end
+    ------- spt_find_page
+        ------- hash_find
+    ------- spt_find_page end hash_elem not null
+    ------- vm_alloc_page_with_initializer
+        ------- spt_find_page
+            ------- hash_find
+        ------- spt_find_page end hash_elem null
+        ------- uninit_new
+        ------- uninit_new end
+    ------- vm_alloc_page_with_initializer end
+    ------- spt_insert_page
+        ------- hash_insert
+        ------- hash_insert end
+    ------- spt_insert_page end
+
+    ------- vm_claim_page
+        ------- spt_find_page
+            ------- hash_find
+        ------- spt_find_page end hash_elem not null
+    ------- vm_claim_page end
+    ------- vm_do_claim_page
+        ------- vm_get_frame
+        ------- vm_get_frame end
+    ------- vm_do_claim_page end page->frame->kva
+    ------- uninit_initialize
+    ------- uninit_initialize end
+    ------- anon_initializer
+    ------- anon_initializer end
+    ------- spt_find_page
+        ------- hash_find
+    ------- spt_find_page end hash_elem not null
+    ------- vm_alloc_page_with_initializer
+        ------- spt_find_page
+            ------- hash_find
+        ------- spt_find_page end hash_elem null
+        ------- uninit_new
+        ------- uninit_new end
+    ------- vm_alloc_page_with_initializer end
+    ------- spt_insert_page
+        ------- hash_insert
+        ------- hash_insert end
+    ------- spt_insert_page end
+
+    ------- vm_claim_page
+        ------- spt_find_page
+            ------- hash_find
+        ------- spt_find_page end hash_elem not null
+    ------- vm_claim_page end
+    ------- vm_do_claim_page
+        ------- vm_get_frame
+        ------- vm_get_frame end
+    ------- vm_do_claim_page end page->frame->kva
+    ------- uninit_initialize
+    ------- uninit_initialize end
+    ------- anon_initializer
+    ------- anon_initializer end
+    ------- spt_find_page
+        ------- hash_find
+    ------- spt_find_page end hash_elem not null
+------- supplemental_page_table_copy end true
+(fork-once) child run
+child: exit(81)
+
+------- process_cleanup
+    ------- supplemental_page_table_kill
+        ------- hash_clear
+            ------- uninit_destroy
+            ------- uninit_destroy end
+            ------- anon_destroy
+            ------- anon_destroy end
+            ------- anon_destroy
+            ------- anon_destroy end
+            ------- anon_destroy
+            ------- anon_destroy end
+            ------- anon_destroy
+            ------- anon_destroy end
+            ------- anon_destroy
+            ------- anon_destroy end
+            ------- anon_destroy
+            ------- anon_destroy end
+            ------- anon_destroy
+            ------- anon_destroy end
+            ------- anon_destroy
+            ------- anon_destroy end
+        ------- hash_clear end
+    ------- supplemental_page_table_kill end
+------- process_cleanup end
+(fork-once) Parent: child exit status is 81
+(fork-once) end
+fork-once: exit(0)
+
+------- process_cleanup
+    ------- supplemental_page_table_kill
+        ------- hash_clear
+            ------- uninit_destroy
+            ------- uninit_destroy end
+            ------- anon_destroy
+            ------- anon_destroy end
+            ------- anon_destroy
+            ------- anon_destroy end
+            ------- anon_destroy
+            ------- anon_destroy end
+            ------- anon_destroy
+            ------- anon_destroy end
+            ------- anon_destroy
+            ------- anon_destroy end
+            ------- anon_destroy
+            ------- anon_destroy end
+            ------- anon_destroy
+            ------- anon_destroy end
+            ------- anon_destroy
+            ------- anon_destroy end
+        ------- hash_clear end
+    ------- supplemental_page_table_kill end
+------- process_cleanup end

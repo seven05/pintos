@@ -27,7 +27,7 @@ void
 uninit_new (struct page *page, void *va, vm_initializer *init,
 		enum vm_type type, void *aux,
 		bool (*initializer)(struct page *, enum vm_type, void *)) {
-	printf("\n------- uninit_new -------");
+	// /**/printf("\n------- uninit_new -------");
 	ASSERT (page != NULL);
 
 	*page = (struct page) {
@@ -41,13 +41,13 @@ uninit_new (struct page *page, void *va, vm_initializer *init,
 			.page_initializer = initializer,
 		}
 	};
-	printf("\n------- uninit_new end -------");
+	// /**/printf("\n------- uninit_new end -------");
 }
 
 /* Initalize the page on first fault */
 static bool
 uninit_initialize (struct page *page, void *kva) {
-	printf("\n------- uninit_initialize -------");
+	// /**/printf("\n------- uninit_initialize -------");
 	// 페이지 초기화
 	struct uninit_page *uninit = &page->uninit;
 
@@ -56,7 +56,7 @@ uninit_initialize (struct page *page, void *kva) {
 	void *aux = uninit->aux;
 
 	/* TODO: You may need to fix this function. */
-	printf("\n------- uninit_initialize end -------");
+	// /**/printf("\n------- uninit_initialize end -------");
 	return uninit->page_initializer (page, uninit->type, kva) &&
 		(init ? init (page, aux) : true);
 }
@@ -66,10 +66,10 @@ uninit_initialize (struct page *page, void *kva) {
  * PAGE는 호출자에 의해 해제될 것입니다. */
 static void
 uninit_destroy (struct page *page) {
-	printf("\n------- uninit_destroy -------");
+	// /**/printf("\n------- uninit_destroy -------");
 	struct uninit_page *uninit UNUSED = &page->uninit;
 	/* TODO: 이 함수를 채우세요.
 	 * TODO: 처리할 것이 없다면, 그냥 return 하세요. */
-	printf("\n------- uninit_destroy end -------");
+	// /**/printf("\n------- uninit_destroy end -------");
 	return;
 }
