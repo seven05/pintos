@@ -30,6 +30,7 @@
         "debug.h": "c",
         "vm.h": "c",
         "malloc.h": "c",
-        "uninit.h": "c"
+        "uninit.h": "c",
+        "inspect.h": "c"
     }
 }

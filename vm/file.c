@@ -73,10 +73,12 @@ file_backed_destroy (struct page *page) {
         list_remove(&page->frame->elem);
         // page->frame->page = NULL;
         page->frame = NULL;
+		// palloc_free_page(page->frame->kva);
         free(page->frame);
     }
 
     pml4_clear_page(thread_current()->pml4, page->va);
+	// free(page);
 	// /**/printf("\n------- file_backed_destroy end -------");
 }
 
@@ -115,8 +117,9 @@ do_mmap (void *addr, size_t length, int writable,
 	struct file *mfile = file_reopen(file);
 	void *ori_addr = addr;
 	size_t read_bytes = (length > file_length(mfile)) ? file_length(mfile) : length;
-	size_t zero_bytes = PGSIZE - read_bytes % PGSIZE;
-
+	// size_t zero_bytes = PGSIZE - read_bytes % PGSIZE;
+	size_t zero_bytes = length - read_bytes;
+	
 	if (addr == NULL
 	|| (file == NULL)
 	|| (addr >= KERN_BASE)
@@ -127,13 +130,14 @@ do_mmap (void *addr, size_t length, int writable,
 	|| (pg_ofs(addr) != 0)
 	|| (offset % PGSIZE != 0)
 	) return NULL;
-
 	while (read_bytes > 0 || zero_bytes > 0) {
 		/* Do calculate how to fill this page.
 			* We will read PAGE_READ_BYTES bytes from FILE
 			* and zero the final PAGE_ZERO_BYTES bytes. */
 		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
+		// /**/printf("\npage_read_bytes : %d", page_read_bytes);
+		// /**/printf("\npage_zero_bytes : %d", page_zero_bytes);
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
 		// project 3
@@ -155,24 +159,44 @@ do_mmap (void *addr, size_t length, int writable,
 		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
 		addr += PGSIZE;
-		offset += page_read_bytes;	
+		offset += page_read_bytes;
+		// /**/printf("\nread_bytes : %d", read_bytes);
+		// /**/printf("\nzero_bytes : %d", zero_bytes);
 	}
 	// /**/printf("\n------- do_mmap end -------");
 	return ori_addr;
 }
 
 /* Do the munmap */
-void
-do_munmap (void *addr) {
+// void
+// do_munmap (void *addr) {
+//	// /**/printf("\n------- do_munmap -------");
+// 	struct thread *curr = thread_current();
+// 	struct hash_iterator iter;
+
+// 	hash_first(&iter, &curr->spt.spt_hash);
+
+// 	while (hash_next(&iter)) {
+// 		struct page *curr_page = hash_entry(hash_cur(&iter), struct page, elem);
+// 		destroy(curr_page);
+// 	}
+//	// /**/printf("\n------- do_munmap end -------");
+// }
+void do_munmap(void *addr) {
 	// /**/printf("\n------- do_munmap -------");
-	struct thread *curr = thread_current();
-	struct hash_iterator iter;
-
-	hash_first(&iter, &curr->spt.spt_hash);
-
-	while (hash_next(&iter)) {
-		struct page *curr_page = hash_entry(hash_cur(&iter), struct page, elem);
-		destroy(curr_page);
-	}
+    struct thread *curr = thread_current();
+    struct page *page;
+    lock_acquire(&syscall_lock);
+    while ((page = spt_find_page(&curr->spt, addr))) {
+		// printf("\npage va : %p", page->va);
+		if(page){
+        	destroy(page);
+			hash_delete(&curr->spt.spt_hash, &page->elem);
+			// spt_remove_page(&curr->spt, page);
+			// vm_dealloc_page(page);
+		}
+        addr += PGSIZE;
+    }
+    lock_release(&syscall_lock);
 	// /**/printf("\n------- do_munmap end -------");
 }

@@ -83,7 +83,7 @@ syscall_init (void) {
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
-	// printf("\n------- syscall handler -------\n");
+	// /**/printf("\n\n======= syscall handler =======");
 	uint64_t arg1 = f->R.rdi;
 	uint64_t arg2 = f->R.rsi;
 	uint64_t arg3 = f->R.rdx;
@@ -98,81 +98,89 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			// RPL(Requested Privilege Level) : cs의 하위 2비트
 			if ((f->cs & 0x3) != 0){}
 				// 권한 없음
-			// printf("SYS_HALT\n");
+			// /**/printf("\nSYS_HALT\n");
 			halt();
 		case SYS_EXIT:							//  1 프로세스 종료
-			// printf("SYS_EXIT\n");
+			// /**/printf("\nSYS_EXIT\n");
 			exit(arg1);
 			break;
 		case SYS_FORK:							//  2 프로세스 복제
-			// printf("SYS_FORK\n");
+			// /**/printf("\nSYS_FORK\n");
 			// f->R.rax=fork(arg1);
 			f->R.rax = fork(arg1, f);		//(oom_update)
 			break;
 		case SYS_EXEC:							//  3 새로운 프로그램 실행
-			// printf("SYS_EXEC\n");
+			// /**/printf("\nSYS_EXEC\n");
 			user_memory_valid((void *)arg1);
 			f->R.rax=exec(arg1);
 			break;
 		case SYS_WAIT:							//  4 자식 프로세스 대기
-			// printf("SYS_WAIT\n");
+			// /**/printf("\nSYS_WAIT\n");
 			f->R.rax=wait(arg1);
 			break;
 		case SYS_CREATE:						//  5 파일 생성
-			// printf("SYS_CREATE\n");
+			// /**/printf("\nSYS_CREATE\n");
 			user_memory_valid((void *)arg1);
-			f->R.rax=create(arg1,arg2);
+			f->R.rax=create(arg1, arg2);
 			break;
 		case SYS_REMOVE:						//  6 파일 삭제
-			// printf("SYS_REMOVE\n");
+			// /**/printf("\nSYS_REMOVE\n");
 			user_memory_valid((void *)arg1);
 			f->R.rax=remove(arg1);
 			break;
 		case SYS_OPEN:							//  7 파일 열기
-			// printf("SYS_OPEN\n");
+			// /**/printf("\nSYS_OPEN\n");
 			user_memory_valid((void *)arg1);
 			f->R.rax=open(arg1);
 			break;
 		case SYS_FILESIZE:						//  8 파일 크기 조회
-			// printf("SYS_FILESIZE\n");
+			// /**/printf("\nSYS_FILESIZE\n");
 			f->R.rax=filesize(arg1);
 			break;
 		case SYS_READ:							//  9 파일에서 읽기
-			// printf("SYS_READ\n");
+			// /**/printf("\nSYS_READ\n");
+			#ifdef VM
+			check_valid_buffer((void *)arg2, (unsigned)arg3, true);
+			#else
 			user_memory_valid((void *)arg2);
-			f->R.rax=read(arg1,arg2,arg3);
+			#endif
+			f->R.rax=read((int)arg1, (void *)arg2, (unsigned)arg3);
 			break;
 		case SYS_WRITE:							//  10 파일에 쓰기
-			// printf("SYS_WRITE\n");
-			user_memory_valid((void *)arg2);
-			f->R.rax=write((int)arg1,(void *)arg2,(unsigned)arg3);
+			// /**/printf("\nSYS_WRITE\n");
+			#ifdef VM
+			check_valid_buffer((void *)arg2, (unsigned)arg3, false);
+			#else
+			user_memory_valid((void *)arg2); 
+			#endif
+			f->R.rax=write((int)arg1, (void *)arg2, (unsigned)arg3);
 			break;
 		case SYS_SEEK:							//  11 파일 내 위치 변경
-			// printf("SYS_SEEK\n");
+			// /**/printf("\nSYS_SEEK\n");
 			seek(arg1,arg2);
 			break;
 		case SYS_TELL:							//  12 파일의 현재 위치 반환
-			// printf("SYS_TELL\n");
+			// /**/printf("\nSYS_TELL\n");
 			f->R.rax=tell(arg1);
 			break;
 		case SYS_CLOSE:							//  13 파일 닫기
-			// printf("SYS_CLOSE\n");
+			// /**/printf("\nSYS_CLOSE\n");
 			close(arg1);
 			break;
 		case SYS_MMAP:
-			// /**/printf("\nSYS_MMAP\n");
+			// /**/printf("\n\nSYS_MMAP\n");
 			f->R.rax=mmap((void *)arg1, (size_t)arg2, (int)arg3, (int)arg4, (off_t)arg5);
 			break;
 		case SYS_MUNMAP:
-			// /**/printf("\nSYS_MUNMAP\n");
+			// /**/printf("\n\nSYS_MUNMAP\n");
 			user_memory_valid((void *)arg1);
 			munmap((void *)arg1);
 			break;
 		default:
-			// printf("default;\n");
+			// /**/printf("\ndefault;\n");
 			break;
 	}
-	// printf("-------------------------------\n\n");
+	// /**/printf("\n===============================\n\n");
 }
 
 void halt (void){
@@ -260,6 +268,8 @@ int read (int fd, void *buffer, unsigned size){
 		}
 		return i;
 	}
+
+	// buffer가 spt에 존재하는지 검사
 	
     struct file *file = get_file_by_descriptor(fd);
 	if (file == NULL || fd == STD_OUT || fd == STD_ERR)  // 빈 파일, stdout, stderr를 읽으려고 할 경우
@@ -334,22 +344,6 @@ void close (int fd){	//(oom_update)
 	file_close(f);
 }
 
-
-void user_memory_valid(void *r){
-	struct thread *current = thread_current();  
-	uint64_t *pml4 = current->pml4;
-	if (r == NULL || is_kernel_vaddr(r) /* || pml4_get_page(pml4,r) == NULL */){
-		exit(-1);
-	}
-}
-
-struct file *get_file_by_descriptor(int fd){
-	if (fd < 3 || fd > 128)
-		return NULL;
-	struct thread *t = thread_current();
-	return t->fd_table[fd];
-}
-
 void *mmap (void *addr, size_t length, int writable, int fd, off_t offset){
 	lock_acquire(&syscall_lock);
 	void *result = do_mmap(addr, length, writable, get_file_by_descriptor(fd), offset);
@@ -359,4 +353,41 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset){
 
 void munmap (void *addr){
 	do_munmap(addr);
+}
+
+#ifndef VM
+void user_memory_valid(void *r){
+	struct thread *current = thread_current();  
+	uint64_t *pml4 = current->pml4;
+	if (r == NULL || is_kernel_vaddr(r) || pml4_get_page(pml4,r) == NULL){
+		exit(-1);
+	}
+}
+#else
+/*------- Project3 VM -------*/
+struct page *user_memory_valid(void *addr){
+	struct thread *curr = thread_current();
+	uint64_t *pml4 = curr->pml4;
+	if (addr == NULL || is_kernel_vaddr(addr)){
+		exit(-1);
+	}
+	return spt_find_page(&curr->spt, addr);
+}
+
+void check_valid_buffer(void *buffer, size_t size, bool writable) {
+	for (size_t i = 0; i < size; i++) {
+        /* buffer가 spt에 존재하는지 검사 */
+        struct page *page = user_memory_valid(buffer + i);
+
+        if (!page || (writable && !(page->writable)))
+            exit(-1);
+    }
+}
+#endif
+
+struct file *get_file_by_descriptor(int fd){
+	if (fd < 3 || fd > 128)
+		return NULL;
+	struct thread *t = thread_current();
+	return t->fd_table[fd];
 }
