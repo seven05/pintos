@@ -5,6 +5,8 @@
 #include "userprog/process.h"
 #include "userprog/syscall.h"
 
+#include "threads/mmu.h"
+
 static bool file_backed_swap_in (struct page *page, void *kva);
 static bool file_backed_swap_out (struct page *page);
 static void file_backed_destroy (struct page *page);
@@ -47,6 +49,7 @@ static bool
 file_backed_swap_in (struct page *page, void *kva) {
 	// /**/printf("------- file_backed_swap_in -------\n");
 	struct file_page *file_page UNUSED = &page->file;
+	return lazy_load_segment(page, file_page);
 	// /**/printf("------- file_backed_swap_in end -------\n");
 }
 
@@ -55,6 +58,16 @@ static bool
 file_backed_swap_out (struct page *page) {
 	// /**/printf("------- file_backed_swap_out -------\n");
 	struct file_page *file_page UNUSED = &page->file;
+	if (pml4_is_dirty(thread_current()->pml4, page->va)) {
+		file_write_at(file_page->file, page->va, file_page->page_read_bytes, file_page->offset);
+		pml4_set_dirty(thread_current()->pml4, page->va, false);
+	}
+
+	page->frame->page = NULL;
+	page->frame = NULL;
+    pml4_clear_page(thread_current()->pml4, page->va);
+	
+	return true;
 	// /**/printf("------- file_backed_swap_out end -------\n");
 }
 
@@ -80,32 +93,6 @@ file_backed_destroy (struct page *page) {
 	pml4_clear_page(thread_current()->pml4, page->va);
 	// free(page);
 	// /**/printf("------- file_backed_destroy end -------\n");
-}
-
-static bool
-lazy_load_segment (struct page *page, void *aux) {
-	/* TODO: Load the segment from the file */
-	/* TODO: This called when the first page fault occurs on address VA. */
-	/* TODO: VA is available when calling this function. */
-	// project 3
-	// /**/printf("------- lazy_load_segment -------\n");
-	struct file *file = ((struct container *)aux)->file;
-	off_t offsetof = ((struct container *)aux)->offset;
-	size_t page_read_bytes = ((struct container *)aux)->page_read_bytes;
-	size_t page_zero_bytes = PGSIZE - page_read_bytes;
-
-	file_seek(file, offsetof);
-	// 여기서 file을 page_read_bytes만큼 읽어옴
-	if(file_read(file, page->frame->kva, page_read_bytes) != (int)page_read_bytes){
-		palloc_free_page(page->frame->kva);
-		// /**/printf("------- lazy_load_segment end false -------\n");
-		return false;
-	}
-	// 나머지 0을 채우는 용도
-	memset(page->frame->kva + page_read_bytes, 0, page_zero_bytes);
-
-	// /**/printf("------- lazy_load_segment end true -------\n");
-	return true;
 }
 
 /* Do the mmap */
@@ -186,7 +173,6 @@ void do_munmap(void *addr) {
 	// /**/printf("------- do_munmap -------\n");
     struct thread *curr = thread_current();
     struct page *page;
-    lock_acquire(&syscall_lock);
     while ((page = spt_find_page(&curr->spt, addr))) {
 		// printf("\npage va : %p", page->va);
 		if(page){
@@ -197,6 +183,5 @@ void do_munmap(void *addr) {
 		}
 		addr += PGSIZE;
 	}
-	lock_release(&syscall_lock);
 	// /**/printf("------- do_munmap end -------\n");
 }

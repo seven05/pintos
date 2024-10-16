@@ -15,4 +15,7 @@ struct container{
 	size_t page_read_bytes;
 	size_t page_zero_bytes;
 };
+
+/*------- Project3 VM - mmap -------*/
+bool lazy_load_segment (struct page *page, void *aux);
 #endif /* userprog/process.h */

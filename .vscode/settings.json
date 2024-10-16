@@ -31,6 +31,9 @@
         "vm.h": "c",
         "malloc.h": "c",
         "uninit.h": "c",
-        "inspect.h": "c"
+        "inspect.h": "c",
+        "disk.h": "c",
+        "loader.h": "c",
+        "bitmap.h": "c"
     }
 }

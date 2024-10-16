@@ -138,10 +138,10 @@ spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
 /* Get the struct frame, that will be evicted. */
 static struct frame *
 vm_get_victim (void) {
-	// /**/printf("------- vm_get_victim -------\n");
-	struct frame *victim = NULL;
 	/* TODO: The policy for eviction is up to you. */
-
+	// /**/printf("------- vm_get_victim -------\n");
+	struct list_elem *e = list_pop_front(&frame_table);
+	struct frame *victim = list_entry(e, struct frame, elem);
 	// /**/printf("------- vm_get_victim end -------\n");
 	return victim;
 }
@@ -153,11 +153,15 @@ vm_evict_frame (void) {
 	// /**/printf("------- vm_evict_frame -------\n");
 	struct frame *victim UNUSED = vm_get_victim ();
 	/* TODO: swap out the victim and return the evicted frame. */
+	bool success = swap_out(victim->page);
+	if (!success) {
+		return NULL;
+	}
 
 	// mytodo : 프레임 스왑 아웃 및 반환. 희생 프레임을 받아서 스왑 아웃
 
 	// /**/printf("------- vm_evict_frame end -------\n");
-	return NULL;
+	return victim;
 }
 
 /* palloc() and get frame. If there is no available page, evict the page
@@ -174,12 +178,12 @@ vm_get_frame (void) {
 	frame->kva = palloc_get_page(PAL_USER);
 	
 	if (frame->kva == NULL) {
-		// frame = vm_evict_frame();
-		// frame->page = NULL;
+		frame = vm_evict_frame();
+		frame->page = NULL;
 		
-		// return frame;
+		return frame;
 		// /**/printf("------- vm_get_frame end kva NULL -------\n");
-		return NULL;
+		// return NULL;
 	}
 	
 	// 생성된 프레임을 frame_table에 넣어준다.

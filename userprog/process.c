@@ -718,7 +718,8 @@ validate_segment (const struct Phdr *phdr, struct file *file) {
  * 만약 프로젝트 2에서만 필요한 기능을 구현하고 싶다면,
  * 위쪽 블록에서 구현하세요. */
 
-static bool
+// static bool
+bool
 lazy_load_segment (struct page *page, void *aux) {
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */
