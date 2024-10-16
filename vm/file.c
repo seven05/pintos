@@ -20,14 +20,14 @@ static const struct page_operations file_ops = {
 /* The initializer of file vm */
 void
 vm_file_init (void) {
-	// /**/printf("\n------- vm_file_init -------");
-	// /**/printf("\n------- vm_file_init end -------");
+	// /**/printf("------- vm_file_init -------\n");
+	// /**/printf("------- vm_file_init end -------\n");
 }
 
 /* Initialize the file backed page */
 bool
 file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
-	// /**/printf("\n------- file_backed_initializer -------");
+	// /**/printf("------- file_backed_initializer -------\n");
 	/* Set up the handler */
 	page->operations = &file_ops;
 
@@ -39,29 +39,29 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
     file_page->page_read_bytes = container->page_read_bytes;
 
     return true;
-	// /**/printf("\n------- file_backed_initializer end -------");
+	// /**/printf("------- file_backed_initializer end -------\n");
 }
 
 /* Swap in the page by read contents from the file. */
 static bool
 file_backed_swap_in (struct page *page, void *kva) {
-	// /**/printf("\n------- file_backed_swap_in -------");
+	// /**/printf("------- file_backed_swap_in -------\n");
 	struct file_page *file_page UNUSED = &page->file;
-	// /**/printf("\n------- file_backed_swap_in end -------");
+	// /**/printf("------- file_backed_swap_in end -------\n");
 }
 
 /* Swap out the page by writeback contents to the file. */
 static bool
 file_backed_swap_out (struct page *page) {
-	// /**/printf("\n------- file_backed_swap_out -------");
+	// /**/printf("------- file_backed_swap_out -------\n");
 	struct file_page *file_page UNUSED = &page->file;
-	// /**/printf("\n------- file_backed_swap_out end -------");
+	// /**/printf("------- file_backed_swap_out end -------\n");
 }
 
 /* Destory the file backed page. PAGE will be freed by the caller. */
 static void
 file_backed_destroy (struct page *page) {
-	// /**/printf("\n------- file_backed_destroy -------");
+	// /**/printf("------- file_backed_destroy -------\n");
 	struct file_page *file_page UNUSED = &page->file;
 
     if (pml4_is_dirty(thread_current()->pml4, page->va)) {
@@ -79,7 +79,7 @@ file_backed_destroy (struct page *page) {
 
     pml4_clear_page(thread_current()->pml4, page->va);
 	// free(page);
-	// /**/printf("\n------- file_backed_destroy end -------");
+	// /**/printf("------- file_backed_destroy end -------\n");
 }
 
 static bool
@@ -88,7 +88,7 @@ lazy_load_segment (struct page *page, void *aux) {
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
 	// project 3
-	// /**/printf("\n------- lazy_load_segment -------");
+	// /**/printf("------- lazy_load_segment -------\n");
 	struct file *file = ((struct container *)aux)->file;
 	off_t offsetof = ((struct container *)aux)->offset;
 	size_t page_read_bytes = ((struct container *)aux)->page_read_bytes;
@@ -98,13 +98,13 @@ lazy_load_segment (struct page *page, void *aux) {
 	// 여기서 file을 page_read_bytes만큼 읽어옴
 	if(file_read(file, page->frame->kva, page_read_bytes) != (int)page_read_bytes){
 		palloc_free_page(page->frame->kva);
-		// /**/printf("\n------- lazy_load_segment end false -------");
+		// /**/printf("------- lazy_load_segment end false -------\n");
 		return false;
 	}
 	// 나머지 0을 채우는 용도
 	memset(page->frame->kva + page_read_bytes, 0, page_zero_bytes);
 
-	// /**/printf("\n------- lazy_load_segment end true -------");
+	// /**/printf("------- lazy_load_segment end true -------\n");
 	return true;
 }
 
@@ -112,7 +112,7 @@ lazy_load_segment (struct page *page, void *aux) {
 void *
 do_mmap (void *addr, size_t length, int writable,
 		struct file *file, off_t offset) {
-	// /**/printf("\n------- do_mmap -------");
+	// /**/printf("------- do_mmap -------\n");
 
 	struct file *mfile = file_reopen(file);
 	void *ori_addr = addr;
@@ -136,8 +136,8 @@ do_mmap (void *addr, size_t length, int writable,
 			* and zero the final PAGE_ZERO_BYTES bytes. */
 		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
-		// /**/printf("\npage_read_bytes : %d", page_read_bytes);
-		// /**/printf("\npage_zero_bytes : %d", page_zero_bytes);
+		// printf("page_read_bytes : %d\n", page_read_bytes);
+		// printf("page_zero_bytes : %d\n", page_zero_bytes);
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
 		// project 3
@@ -150,7 +150,7 @@ do_mmap (void *addr, size_t length, int writable,
 
 		if (!vm_alloc_page_with_initializer (VM_FILE, addr,
 					writable, lazy_load_segment, container)){
-			// /**/printf("\n------- load_segment end false -------");
+			// /**/printf("------- load_segment end false -------\n");
 			free(container);
 			return NULL;
 		}
@@ -160,17 +160,17 @@ do_mmap (void *addr, size_t length, int writable,
 		zero_bytes -= page_zero_bytes;
 		addr += PGSIZE;
 		offset += page_read_bytes;
-		// /**/printf("\nread_bytes : %d", read_bytes);
-		// /**/printf("\nzero_bytes : %d", zero_bytes);
+		// printf("read_bytes : %d\n", read_bytes);
+		// printf("zero_bytes : %d\n", zero_bytes);
 	}
-	// /**/printf("\n------- do_mmap end -------");
+	// /**/printf("------- do_mmap end -------\n");
 	return ori_addr;
 }
 
 /* Do the munmap */
 // void
 // do_munmap (void *addr) {
-//	// /**/printf("\n------- do_munmap -------");
+//	printf("------- do_munmap -------\n");
 // 	struct thread *curr = thread_current();
 // 	struct hash_iterator iter;
 
@@ -180,10 +180,10 @@ do_mmap (void *addr, size_t length, int writable,
 // 		struct page *curr_page = hash_entry(hash_cur(&iter), struct page, elem);
 // 		destroy(curr_page);
 // 	}
-//	// /**/printf("\n------- do_munmap end -------");
+//	printf("------- do_munmap end -------\n");
 // }
 void do_munmap(void *addr) {
-	// /**/printf("\n------- do_munmap -------");
+	// /**/printf("------- do_munmap -------\n");
     struct thread *curr = thread_current();
     struct page *page;
     lock_acquire(&syscall_lock);
@@ -198,5 +198,5 @@ void do_munmap(void *addr) {
         addr += PGSIZE;
     }
     lock_release(&syscall_lock);
-	// /**/printf("\n------- do_munmap end -------");
+	// /**/printf("------- do_munmap end -------\n");
 }
