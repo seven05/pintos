@@ -173,23 +173,18 @@ vm_get_frame (void) {
 	// /**/printf("------- vm_get_frame -------\n");
 	struct frame *frame = NULL;
 	/* TODO: Fill this function. */
-	// PJ3
 	frame = (struct frame *)malloc(sizeof (struct frame));
-	frame->kva = palloc_get_page(PAL_USER);
+	frame->kva = palloc_get_page(PAL_USER | PAL_ZERO);
 	
 	if (frame->kva == NULL) {
 		frame = vm_evict_frame();
-		frame->page = NULL;
-		
-		return frame;
 		// /**/printf("------- vm_get_frame end kva NULL -------\n");
 		// return NULL;
 	}
+	frame->page = NULL;
+	list_push_back (&frame_table, &frame->elem);
 	
 	// 생성된 프레임을 frame_table에 넣어준다.
-	list_push_back (&frame_table, &frame->elem);
-	frame->page = NULL;
-
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
 	// /**/printf("------- vm_get_frame end -------\n");
@@ -201,14 +196,14 @@ static void
 vm_stack_growth (void *addr UNUSED) {
 	// /**/printf("------- vm_stack_growth -------\n");
 	bool success = false;
-	void *stack_max = (void *)((uint8_t *)thread_current()->stack_max - PGSIZE);
+	void *stack_max = thread_current()->stack_max - PGSIZE;
 	
 	if(vm_alloc_page(VM_ANON | VM_MARKER_0, stack_max, 1)){
-        success = vm_claim_page(stack_max);
-        if(success){
-            thread_current()->stack_max = stack_max;
-        }
-    }
+		success = vm_claim_page(stack_max);
+		if(success){
+			thread_current()->stack_max = stack_max;
+		}
+	}
 	// /**/printf("------- vm_stack_growth end -------\n");
 }
 
@@ -224,48 +219,31 @@ bool
 vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
 	struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
-	struct page *page = NULL;
+	struct page *page = spt_find_page(&thread_current()->spt, addr);
 
-	// /**/printf("------- vm_try_handle_fault -------\n");
-	if (addr == NULL){
-		// /**/printf("------- vm_try_handle_fault end (addr == NULL) -------\n");
+	/* TODO: Validate the fault */
+	if (addr == NULL || is_kernel_vaddr(addr))
+		return false;
+
+	/** Project 3: Copy On Write (Extra) - 접근한 메모리의 page가 존재하고 write 요청인데 write protected인 경우라 발생한 fault일 경우*/
+	if (!not_present && write)
+	    return false;
+
+	/** Project 3: Copy On Write (Extra) - 이전에 만들었던 페이지인데 swap out되어서 현재 spt에서 삭제하였을 때 stack_growth 대신 claim_page를 하기 위해 조건 분기 */
+	if (!page) {
+		/** Project 3: Stack Growth - stack growth로 처리할 수 있는 경우 */
+		/* stack pointer 아래 8바이트는 페이지 폴트 발생 & addr 위치를 USER_STACK에서 1MB로 제한 */
+		void *stack_pointer = user ? f->rsp : thread_current()->stack_pointer;
+		if (stack_pointer - 8 <= addr && addr >= STACK_LIMIT && addr <= USER_STACK) {
+			vm_stack_growth(addr);
+			return true;
+		}
 		return false;
 	}
 
-	if (is_kernel_vaddr(addr)){
-		// /**/printf("------- vm_try_handle_fault end is_kernel_vaddr(addr) -------\n");
-		return false;
-	}
-
-	// mytodo : stack_pointer - 8 <= addr 이게 뭔솔?
-	void *stack_pointer = user ? f->rsp : thread_current()->stack_pointer;
-	if (stack_pointer - 8 <= addr && addr >= STACK_LIMIT && addr <= USER_STACK) {
-		vm_stack_growth(addr);
-		// /**/printf("------- vm_try_handle_fault end (stack_pointer - 8 <= addr && addr >= STACK_LIMIT && addr <= USER_STACK) -------\n");
-		return true;
-	}
-	// if (thread_current()->stack_max > addr) {
-	// 	vm_stack_growth(addr);
-	// }
-
-	if (not_present) // 접근한 메모리의 physical page가 존재하지 않은 경우
-	{
-		/* TODO: Validate the fault */
-		page = spt_find_page(spt, addr);
-		if (page == NULL){
-			// /**/printf("------- vm_try_handle_fault end (page == NULL) -------\n");
-			return false;
-		}
-		if (write == 1 && page->writable == 0){ // write 불가능한 페이지에 write 요청한 경우
-			// /**/printf("------- vm_try_handle_fault end (write == 1 && page->writable == 0) -------\n");
-			return false;
-		}
-		// /**/printf("------- vm_try_handle_fault end (not_present) -------\n");
-		return vm_do_claim_page(page);
-	}
-	// /**/printf("------- vm_try_handle_fault end false -------\n");
-	return false;
+	return vm_do_claim_page(page);  // demand page 수행
 }
+
 
 /* Free the page.
  * DO NOT MODIFY THIS FUNCTION. */
@@ -347,7 +325,6 @@ bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED, st
 
 		switch (type) {
 			case VM_UNINIT:  // src 타입이 initialize 되지 않았을 경우
-				// mytodo : 어째서 VM_UNINIT 타입을 다른 타입으로 변경한 후에 초기화 하는지 의문
 				if (!vm_alloc_page_with_initializer(page_get_type(src_page), upage, writable, src_page->uninit.init, src_page->uninit.aux)){
 					// /**/printf("------- supplemental_page_table_copy end (!vm_alloc_page_with_initializer(page_get_type(src_page), upage, writable, src_page->uninit.init, src_page->uninit.aux)) -------\n");
 					goto err;

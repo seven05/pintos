@@ -77,7 +77,7 @@ anon_swap_out (struct page *page) {
 		return false;
 	}
 	for (int i=0; i<SWAP_SIZE; i++) {
-		disk_write(swap_disk, swap_idx*SWAP_SIZE+i, page->va+DISK_SECTOR_SIZE*i);
+		disk_write(swap_disk, swap_idx*SWAP_SIZE+i, (page->va)+DISK_SECTOR_SIZE*i);
 	}
 	anon_page->slot = swap_idx;
 	page->frame->page = NULL;
@@ -96,6 +96,8 @@ anon_destroy (struct page *page) {
 	struct anon_page *anon_page = &page->anon;
 	
 	// mytodo : destroy코드 필요? (있든 없든 결과는 같음. <24.10.11 anonymous 작성중>)
+    if (anon_page->slot != BITMAP_ERROR)
+        bitmap_reset(swap_table, anon_page->slot);
 
 	// /** Project 3: Anonymous Page - 점거중인 frame 삭제 */
 	if (page->frame) {

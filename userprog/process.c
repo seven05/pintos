@@ -246,10 +246,11 @@ process_exec (void *f_name) {
 	lock_release(&syscall_lock); //minjae's
 
 	/* If load failed, quit. */
-	palloc_free_page (file_name);
-	if (!success)
+	if (!success){
+		palloc_free_page (file_name);
 		return -1;
-
+	}
+	
 	/* Start switched process. */
 	do_iret (&_if);
 	// /**/printf("------- process_exec end -------\n");
