@@ -547,7 +547,7 @@ load (const char *file_name, struct intr_frame *if_) {
 	char **argv = if_->rsp;
 
 	if_->rsp -= sizeof(void *);
-    *(void **)if_->rsp = NULL;
+	*(void **)if_->rsp = NULL;
 
 	if_->rsp = (uint64_t)if_->rsp;
 

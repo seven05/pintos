@@ -376,12 +376,12 @@ struct page *user_memory_valid(void *addr){
 
 void check_valid_buffer(void *buffer, size_t size, bool writable) {
 	for (size_t i = 0; i < size; i++) {
-        /* buffer가 spt에 존재하는지 검사 */
-        struct page *page = user_memory_valid(buffer + i);
+		/* buffer가 spt에 존재하는지 검사 */
+		struct page *page = user_memory_valid(buffer + i);
 
-        if (!page || (writable && !(page->writable)))
-            exit(-1);
-    }
+		if (!page || (writable && !(page->writable)))
+			exit(-1);
+	}
 }
 #endif
 

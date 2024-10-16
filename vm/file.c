@@ -31,14 +31,14 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 	/* Set up the handler */
 	page->operations = &file_ops;
 
-    struct file_page *file_page = &page->file;
+	struct file_page *file_page = &page->file;
 
-    struct container *container = (struct container *)page->uninit.aux;
-    file_page->file = container->file;
-    file_page->offset = container->offset;
-    file_page->page_read_bytes = container->page_read_bytes;
+	struct container *container = (struct container *)page->uninit.aux;
+	file_page->file = container->file;
+	file_page->offset = container->offset;
+	file_page->page_read_bytes = container->page_read_bytes;
 
-    return true;
+	return true;
 	// /**/printf("------- file_backed_initializer end -------\n");
 }
 
@@ -64,20 +64,20 @@ file_backed_destroy (struct page *page) {
 	// /**/printf("------- file_backed_destroy -------\n");
 	struct file_page *file_page UNUSED = &page->file;
 
-    if (pml4_is_dirty(thread_current()->pml4, page->va)) {
-        file_write_at(file_page->file, page->va, file_page->page_read_bytes, file_page->offset);
-        pml4_set_dirty(thread_current()->pml4, page->va, false);
-    }
+	if (pml4_is_dirty(thread_current()->pml4, page->va)) {
+		file_write_at(file_page->file, page->va, file_page->page_read_bytes, file_page->offset);
+		pml4_set_dirty(thread_current()->pml4, page->va, false);
+	}
 
-    if (page->frame) {
-        list_remove(&page->frame->elem);
-        // page->frame->page = NULL;
-        page->frame = NULL;
+	if (page->frame) {
+		list_remove(&page->frame->elem);
+		// page->frame->page = NULL;
+		page->frame = NULL;
 		// palloc_free_page(page->frame->kva);
-        free(page->frame);
-    }
+		free(page->frame);
+	}
 
-    pml4_clear_page(thread_current()->pml4, page->va);
+	pml4_clear_page(thread_current()->pml4, page->va);
 	// free(page);
 	// /**/printf("------- file_backed_destroy end -------\n");
 }
@@ -195,8 +195,8 @@ void do_munmap(void *addr) {
 			// spt_remove_page(&curr->spt, page);
 			// vm_dealloc_page(page);
 		}
-        addr += PGSIZE;
-    }
-    lock_release(&syscall_lock);
+		addr += PGSIZE;
+	}
+	lock_release(&syscall_lock);
 	// /**/printf("------- do_munmap end -------\n");
 }

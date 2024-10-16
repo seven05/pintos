@@ -219,18 +219,18 @@ vm_handle_wp (struct page *page UNUSED) {
 bool
 vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
-    struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
-    struct page *page = NULL;
+	struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
+	struct page *page = NULL;
 
 	// /**/printf("------- vm_try_handle_fault -------\n");
-    if (addr == NULL){
+	if (addr == NULL){
 		// /**/printf("------- vm_try_handle_fault end (addr == NULL) -------\n");
-        return false;
+		return false;
 	}
 
-    if (is_kernel_vaddr(addr)){
+	if (is_kernel_vaddr(addr)){
 		// /**/printf("------- vm_try_handle_fault end is_kernel_vaddr(addr) -------\n");
-        return false;
+		return false;
 	}
 
 	// mytodo : stack_pointer - 8 <= addr 이게 뭔솔?
@@ -244,23 +244,23 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	// 	vm_stack_growth(addr);
 	// }
 
-    if (not_present) // 접근한 메모리의 physical page가 존재하지 않은 경우
-    {
-        /* TODO: Validate the fault */
-        page = spt_find_page(spt, addr);
-        if (page == NULL){
+	if (not_present) // 접근한 메모리의 physical page가 존재하지 않은 경우
+	{
+		/* TODO: Validate the fault */
+		page = spt_find_page(spt, addr);
+		if (page == NULL){
 			// /**/printf("------- vm_try_handle_fault end (page == NULL) -------\n");
-            return false;
+			return false;
 		}
-        if (write == 1 && page->writable == 0){ // write 불가능한 페이지에 write 요청한 경우
+		if (write == 1 && page->writable == 0){ // write 불가능한 페이지에 write 요청한 경우
 			// /**/printf("------- vm_try_handle_fault end (write == 1 && page->writable == 0) -------\n");
-            return false;
+			return false;
 		}
 		// /**/printf("------- vm_try_handle_fault end (not_present) -------\n");
-        return vm_do_claim_page(page);
-    }
+		return vm_do_claim_page(page);
+	}
 	// /**/printf("------- vm_try_handle_fault end false -------\n");
-    return false;
+	return false;
 }
 
 /* Free the page.
@@ -426,6 +426,6 @@ uint64_t hs_hash_func(const struct hash_elem *e, void *aux UNUSED) {
 
 bool hs_less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED) {
 	const struct page *page_a = hash_entry(a, struct page, elem);
-    const struct page *page_b = hash_entry(b, struct page, elem);
-    return (page_a->va) < (page_b->va);
+	const struct page *page_b = hash_entry(b, struct page, elem);
+	return (page_a->va) < (page_b->va);
 }
