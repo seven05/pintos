@@ -111,7 +111,6 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			break;
 		case SYS_EXEC:							//  3 새로운 프로그램 실행
 			// /**/printf("SYS_EXEC\n");
-			user_memory_valid((void *)arg1);
 			f->R.rax=exec(arg1);
 			break;
 		case SYS_WAIT:							//  4 자식 프로세스 대기
@@ -120,17 +119,14 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			break;
 		case SYS_CREATE:						//  5 파일 생성
 			// /**/printf("SYS_CREATE\n");
-			user_memory_valid((void *)arg1);
 			f->R.rax=create(arg1, arg2);
 			break;
 		case SYS_REMOVE:						//  6 파일 삭제
 			// /**/printf("SYS_REMOVE\n");
-			user_memory_valid((void *)arg1);
 			f->R.rax=remove(arg1);
 			break;
 		case SYS_OPEN:							//  7 파일 열기
 			// /**/printf("SYS_OPEN\n");
-			user_memory_valid((void *)arg1);
 			f->R.rax=open(arg1);
 			break;
 		case SYS_FILESIZE:						//  8 파일 크기 조회
@@ -139,20 +135,10 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			break;
 		case SYS_READ:							//  9 파일에서 읽기
 			// /**/printf("SYS_READ\n");
-			#ifdef VM
-			check_valid_buffer((void *)arg2, (unsigned)arg3, true);
-			#else
-			user_memory_valid((void *)arg2);
-			#endif
 			f->R.rax=read((int)arg1, (void *)arg2, (unsigned)arg3);
 			break;
 		case SYS_WRITE:							//  10 파일에 쓰기
 			// /**/printf("SYS_WRITE\n");
-			#ifdef VM
-			check_valid_buffer((void *)arg2, (unsigned)arg3, false);
-			#else
-			user_memory_valid((void *)arg2); 
-			#endif
 			f->R.rax=write((int)arg1, (void *)arg2, (unsigned)arg3);
 			break;
 		case SYS_SEEK:							//  11 파일 내 위치 변경
@@ -173,7 +159,6 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			break;
 		case SYS_MUNMAP:
 			// /**/printf("SYS_MUNMAP\n");
-			user_memory_valid((void *)arg1);
 			munmap((void *)arg1);
 			break;
 		default:
@@ -199,6 +184,7 @@ pid_t fork (const char *thread_name, struct intr_frame *f) {	//(oom_update)
 }
 
 int exec (const char *cmd_line){
+	user_memory_valid((void *)cmd_line);
 	char *copy = palloc_get_page(PAL_ZERO);
 	if (copy == NULL) {
 		exit(-1);
@@ -215,6 +201,7 @@ int wait (pid_t pid){
 }
 
 bool create (const char *file, unsigned initial_size){
+	user_memory_valid((void *)file);
 	lock_acquire(&syscall_lock);		//minjae's
 	bool create_return = filesys_create(file, initial_size);
 	lock_release(&syscall_lock);		//minjae's
@@ -222,10 +209,15 @@ bool create (const char *file, unsigned initial_size){
 }
 
 bool remove (const char *file){
-	return filesys_remove(file);
+	user_memory_valid((void *)file);
+	lock_acquire(&syscall_lock);
+	bool result = filesys_remove(file);
+	lock_release(&syscall_lock);
+	return result;
 }
 
 int open (const char *file) {	//(oom_update)
+	user_memory_valid((void *)file);
 	lock_acquire(&syscall_lock);
 	struct file *f = filesys_open(file);
 	if (f == NULL){
@@ -255,6 +247,11 @@ int filesize (int fd){
 }
 
 int read (int fd, void *buffer, unsigned size){
+#ifdef VM
+	check_valid_buffer((void *)buffer, (unsigned)size, true);
+#else
+	user_memory_valid((void *)buffer);
+#endif
 	if (fd == STD_IN) {                // keyboard로 직접 입력
 		int i;  // 쓰레기 값 return 방지
 		char c;
@@ -284,6 +281,11 @@ int read (int fd, void *buffer, unsigned size){
 }
 
 int write (int fd, const void *buffer, unsigned size){
+#ifdef VM
+	check_valid_buffer((void *)buffer, (unsigned)size, false);
+#else
+	user_memory_valid((void *)buffer);
+#endif
 	if (fd == STD_IN || fd == STD_ERR){
 		return -1;
 	}
@@ -352,7 +354,10 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset){
 }
 
 void munmap (void *addr){
+	user_memory_valid((void *)addr);
+	lock_acquire(&syscall_lock);
 	do_munmap(addr);
+	lock_release(&syscall_lock);
 }
 
 #ifndef VM
