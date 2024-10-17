@@ -1,8 +1,8 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
 
-#define USERPROG	// Project2 에러 제거용
-#define VM			// Project3 에러 제거용
+// #define USERPROG	// Project2 에러 제거용
+// #define VM			// Project3 에러 제거용
 
 #include <debug.h>
 #include <list.h>
