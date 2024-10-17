@@ -106,5 +106,6 @@ anon_destroy (struct page *page) {
 		page->frame = NULL;
 	}
 
+	pml4_clear_page(thread_current()->pml4, page->va);
 	// /**/printf("------- anon_destroy end -------\n");
 }

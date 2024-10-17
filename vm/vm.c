@@ -158,8 +158,6 @@ vm_evict_frame (void) {
 		return NULL;
 	}
 
-	// mytodo : 프레임 스왑 아웃 및 반환. 희생 프레임을 받아서 스왑 아웃
-
 	// /**/printf("------- vm_evict_frame end -------\n");
 	return victim;
 }
@@ -183,7 +181,6 @@ vm_get_frame (void) {
 	frame->page = NULL;
 	list_push_back (&frame_table, &frame->elem);
 	
-	// 생성된 프레임을 frame_table에 넣어준다.
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
 	// /**/printf("------- vm_get_frame end -------\n");
@@ -210,6 +207,22 @@ vm_stack_growth (void *addr UNUSED) {
 static bool
 vm_handle_wp (struct page *page UNUSED) {
 	// /**/printf("------- vm_handle_wp -------\n");
+	if (!page->ori_writable)
+		return false;
+
+	void *kva = page->frame->kva;
+
+	page->frame->kva = palloc_get_page(PAL_USER | PAL_ZERO);
+
+	if (page->frame->kva == NULL)
+		page->frame = vm_evict_frame();  // Swap Out 수행
+
+	memcpy(page->frame->kva, kva, PGSIZE);
+
+	if (!pml4_set_page(thread_current()->pml4, page->va, page->frame->kva, page->ori_writable))
+		return false;
+
+	return true;
 	// /**/printf("------- vm_handle_wp end -------\n");
 }
 
@@ -226,7 +239,7 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 
 	/** Project 3: Copy On Write (Extra) - 접근한 메모리의 page가 존재하고 write 요청인데 write protected인 경우라 발생한 fault일 경우*/
 	if (!not_present && write)
-	    return false;
+	    return vm_handle_wp(page);
 
 	/** Project 3: Copy On Write (Extra) - 이전에 만들었던 페이지인데 swap out되어서 현재 spt에서 삭제하였을 때 stack_growth 대신 claim_page를 하기 위해 조건 분기 */
 	if (!page) {
@@ -332,18 +345,44 @@ bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED, st
 					// /**/printf("------- supplemental_page_table_copy end (!vm_alloc_page(type, upage, writable)) -------\n");
 					goto err;
 				}
-				if (!vm_claim_page(upage)){  // 물리 메모리와 매핑하고 initialize
-					// /**/printf("------- supplemental_page_table_copy end (!vm_claim_page(upage)) -------\n");
-					goto err;
-				}
-				struct page *dst_page = spt_find_page(dst, upage);  // 대응하는 물리 메모리 데이터 복제
-				memcpy(dst_page->frame->kva, src_page->frame->kva, PGSIZE);
+				// if (!vm_claim_page(upage)){  // 물리 메모리와 매핑하고 initialize
+				// 	// /**/printf("------- supplemental_page_table_copy end (!vm_claim_page(upage)) -------\n");
+				// 	goto err;
+				// }
+				// struct page *dst_page = spt_find_page(dst, upage);  // 대응하는 물리 메모리 데이터 복제
+				// memcpy(dst_page->frame->kva, src_page->frame->kva, PGSIZE);
 
 				/** Project 3: Copy On Write (Extra) - 메모리에 load된 데이터를 write하지 않는 이상 똑같은 메모리를 사용하는데
 				 *  2개의 복사본을 만드는 것은 메모리가 낭비가 난다. 따라서 write 요청이 들어왔을 때만 해당 페이지에 대한 물리메모리를
 				 *  할당하고 맵핑하면 된다. */
 				// if (!vm_copy_claim_page(dst, upage, src_page->frame->kva, writable))  // 물리 메모리와 매핑하고 initialize
 				//     goto err;
+				struct page *page = spt_find_page(dst, upage);
+
+				if (page == NULL)
+					goto err;
+
+				struct frame *frame = (struct frame *)malloc(sizeof(struct frame));
+
+				if (!frame)
+					goto err;
+
+				/* Set links */
+				page->ori_writable = writable;  // 접근 권한 설정
+				frame->page = page;
+				page->frame = frame;
+				frame->kva = src_page->frame->kva;
+
+				if (!pml4_set_page(thread_current()->pml4, page->va, frame->kva, false)) {
+					free(frame);
+					goto err;
+				}
+
+				list_push_back(&frame_table, &frame->elem);  // frame table에 추가
+
+				if(!swap_in(page, frame->kva)) {
+					goto err;
+				}
 
 				break;
 
