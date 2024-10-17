@@ -348,17 +348,13 @@ void close (int fd){
 }
 
 void *mmap (void *addr, size_t length, int writable, int fd, off_t offset){
-	lock_acquire(&syscall_lock);
 	void *result = do_mmap(addr, length, writable, get_file_by_descriptor(fd), offset);
-	lock_release(&syscall_lock);
 	return result;
 }
 
 void munmap (void *addr){
 	user_memory_valid((void *)addr);
-	lock_acquire(&syscall_lock);
 	do_munmap(addr);
-	lock_release(&syscall_lock);
 }
 
 #ifndef VM

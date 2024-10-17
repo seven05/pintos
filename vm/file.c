@@ -105,7 +105,7 @@ do_mmap (void *addr, size_t length, int writable,
 	void *ori_addr = addr;
 	size_t read_bytes = (length > file_length(mfile)) ? file_length(mfile) : length;
 	// size_t zero_bytes = PGSIZE - read_bytes % PGSIZE;
-	size_t zero_bytes = length - read_bytes;
+	size_t zero_bytes = ((length + PGSIZE-1)/PGSIZE)*PGSIZE - read_bytes;
 	
 	if (addr == NULL
 	|| (file == NULL)
@@ -115,7 +115,10 @@ do_mmap (void *addr, size_t length, int writable,
 	|| (read_bytes + zero_bytes) % PGSIZE != 0
 	|| (pg_ofs(addr) != 0)
 	|| (offset % PGSIZE != 0)
-	) return NULL;
+	) {
+		// /**/printf("------- do_mmap end NULL handling -------\n");
+		return NULL;
+	}
 	while (read_bytes > 0 || zero_bytes > 0) {
 		/* Do calculate how to fill this page.
 			* We will read PAGE_READ_BYTES bytes from FILE
@@ -132,7 +135,7 @@ do_mmap (void *addr, size_t length, int writable,
 
 		if (!vm_alloc_page_with_initializer (VM_FILE, addr,
 					writable, lazy_load_segment, container)){
-			// /**/printf("------- load_segment end false -------\n");
+			// /**/printf("------- do_mmap end false -------\n");
 			free(container);
 			return NULL;
 		}
