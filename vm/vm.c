@@ -179,7 +179,6 @@ vm_get_frame (void) {
 	if (frame->kva == NULL) {
 		frame = vm_evict_frame();
 		// /**/printf("------- vm_get_frame end kva NULL -------\n");
-		// return NULL;
 	}
 	frame->page = NULL;
 	list_push_back (&frame_table, &frame->elem);
@@ -263,8 +262,6 @@ vm_claim_page (void *va UNUSED) {
 	// /**/printf("------- vm_claim_page -------\n");
 	struct page *page = spt_find_page(&thread_current()->spt, va);
 	/* TODO: Fill this function */
-	// PJ3
-	
 	if (page == NULL) {
 		// /**/printf("------- vm_claim_page end (page == NULL) -------\n");
 		return false;
@@ -281,7 +278,6 @@ vm_do_claim_page(struct page *page)
 	// /**/printf("------- vm_do_claim_page -------\n");
 	/* 역할: 이 함수는 페이지를 할당하고 MMU(Memory Management Unit)를 설정하는 역할을 합니다. 
 	페이지와 프레임 간의 연결을 설정하고, 페이지 테이블 엔트리를 업데이트하여 가상 주소를 물리 주소로 변환할 수 있도록 합니다. */
-	// PJ3
 	if (!page || !is_user_vaddr(page->va)) {
 		return false;
 	}
@@ -385,7 +381,6 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	// /**/printf("------- supplemental_page_table_kill -------\n");
 
 	// mytodo : dirty bit가 1이면 저장공간 내용 수정
-	// hash_destroy(&spt->spt_hash, action_func);
 	hash_clear(&spt->spt_hash, action_func);
 	// /**/printf("------- supplemental_page_table_kill end -------\n");
 }

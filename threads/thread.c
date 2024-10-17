@@ -235,7 +235,6 @@ thread_create (const char *name, int priority,
 	t->fd_table[STD_IN] = 0;	//0,1,2로 init값 변경해 봤으나 1,2,3도 상관없다는 결론 (oom_update)
 	t->fd_table[STD_OUT] = 1;
 	t->fd_table[STD_ERR] = 2;
-	// t->next_fd = 3;
 	/*-----------------------------------------*/
 #endif
 		t->recent_cpu = thread_current()->recent_cpu;
@@ -279,7 +278,6 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
-	// list_push_back (&ready_list, &t->elem);
 	list_insert_ordered (&ready_list, &t->elem, high_priority, NULL);
 	t->status = THREAD_READY;
 
@@ -346,7 +344,6 @@ thread_yield (void) {
 
 	old_level = intr_disable ();
 	if (curr != idle_thread)
-		// list_push_back (&ready_list, &curr->elem);
 		list_insert_ordered (&ready_list, &curr->elem, high_priority, NULL);
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
@@ -501,7 +498,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	sema_init(&t->wait_sema, 0);
 	sema_init(&t->free_sema, 0);
 	list_init(&t->children);
-	t->next_fd = 3;	//(oom_update)
+	t->next_fd = 3;
 	// t->process_status = PROCESS_NORM;
 #endif
 }

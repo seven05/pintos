@@ -107,7 +107,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_FORK:							//  2 프로세스 복제
 			// /**/printf("SYS_FORK\n");
 			// f->R.rax=fork(arg1);
-			f->R.rax = fork(arg1, f);		//(oom_update)
+			f->R.rax = fork(arg1, f);
 			break;
 		case SYS_EXEC:							//  3 새로운 프로그램 실행
 			// /**/printf("SYS_EXEC\n");
@@ -179,7 +179,8 @@ void exit (int status){
 	thread_exit();
 }
 
-pid_t fork (const char *thread_name, struct intr_frame *f) {	//(oom_update)
+pid_t fork (const char *thread_name, struct intr_frame *f) {
+	user_memory_valid((void *)thread_name);
 	return process_fork(thread_name, f);
 }
 
@@ -202,9 +203,9 @@ int wait (pid_t pid){
 
 bool create (const char *file, unsigned initial_size){
 	user_memory_valid((void *)file);
-	lock_acquire(&syscall_lock);		//minjae's
+	lock_acquire(&syscall_lock);
 	bool create_return = filesys_create(file, initial_size);
-	lock_release(&syscall_lock);		//minjae's
+	lock_release(&syscall_lock);
 	return create_return;
 }
 
@@ -216,7 +217,7 @@ bool remove (const char *file){
 	return result;
 }
 
-int open (const char *file) {	//(oom_update)
+int open (const char *file) {
 	user_memory_valid((void *)file);
 	lock_acquire(&syscall_lock);
 	struct file *f = filesys_open(file);
@@ -331,7 +332,7 @@ unsigned tell (int fd){
 	return file_tell(file);
 }
 
-void close (int fd){	//(oom_update)
+void close (int fd){
 	if (fd <= 2)
 		return;
 	struct thread *curr = thread_current ();

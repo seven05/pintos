@@ -99,7 +99,6 @@ anon_destroy (struct page *page) {
     if (anon_page->slot != BITMAP_ERROR)
         bitmap_reset(swap_table, anon_page->slot);
 
-	// /** Project 3: Anonymous Page - 점거중인 frame 삭제 */
 	if (page->frame) {
 		list_remove(&page->frame->elem);
 		page->frame->page = NULL;

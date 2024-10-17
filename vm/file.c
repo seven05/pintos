@@ -84,7 +84,7 @@ file_backed_destroy (struct page *page) {
 
 	if (page->frame) {
 		list_remove(&page->frame->elem);
-		// page->frame->page = NULL;
+		page->frame->page = NULL;
 		page->frame = NULL;
 		// palloc_free_page(page->frame->kva);
 		free(page->frame);
@@ -110,7 +110,6 @@ do_mmap (void *addr, size_t length, int writable,
 	if (addr == NULL
 	|| (file == NULL)
 	|| (addr >= KERN_BASE)
-	// || (addr + length < USER_STACK)
 	|| (addr + length >= KERN_BASE)
 	|| ((long)length <= 0)
 	|| (read_bytes + zero_bytes) % PGSIZE != 0
@@ -123,12 +122,8 @@ do_mmap (void *addr, size_t length, int writable,
 			* and zero the final PAGE_ZERO_BYTES bytes. */
 		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
-		// printf("page_read_bytes : %d\n", page_read_bytes);
-		// printf("page_zero_bytes : %d\n", page_zero_bytes);
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
-		// project 3
-		// void *aux = NULL;
 		struct container *container = (struct container *)malloc(sizeof(struct container));
 		container->file = mfile;
 		container->page_read_bytes = page_read_bytes;
@@ -147,28 +142,12 @@ do_mmap (void *addr, size_t length, int writable,
 		zero_bytes -= page_zero_bytes;
 		addr += PGSIZE;
 		offset += page_read_bytes;
-		// printf("read_bytes : %d\n", read_bytes);
-		// printf("zero_bytes : %d\n", zero_bytes);
 	}
 	// /**/printf("------- do_mmap end -------\n");
 	return ori_addr;
 }
 
 /* Do the munmap */
-// void
-// do_munmap (void *addr) {
-//	printf("------- do_munmap -------\n");
-// 	struct thread *curr = thread_current();
-// 	struct hash_iterator iter;
-
-// 	hash_first(&iter, &curr->spt.spt_hash);
-
-// 	while (hash_next(&iter)) {
-// 		struct page *curr_page = hash_entry(hash_cur(&iter), struct page, elem);
-// 		destroy(curr_page);
-// 	}
-//	printf("------- do_munmap end -------\n");
-// }
 void do_munmap(void *addr) {
 	// /**/printf("------- do_munmap -------\n");
     struct thread *curr = thread_current();
