@@ -104,6 +104,7 @@ anon_destroy (struct page *page) {
 		page->frame->page = NULL;
 		free(page->frame);
 		page->frame = NULL;
+		// palloc_free_page(page);		리팩토링 실패. 왜 해제하려 하면 터지는거임?
 	}
 
 	pml4_clear_page(thread_current()->pml4, page->va);
