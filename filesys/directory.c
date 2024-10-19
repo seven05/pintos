@@ -23,6 +23,8 @@ struct dir_entry {
  * given SECTOR.  Returns true if successful, false on failure. */
 bool
 dir_create (disk_sector_t sector, size_t entry_cnt) {
+	// /**/printf("\n------- dir_create -------\n");
+	// /**/printf("------- dir_create end -------\n\n");
 	return inode_create (sector, entry_cnt * sizeof (struct dir_entry));
 }
 
@@ -30,14 +32,17 @@ dir_create (disk_sector_t sector, size_t entry_cnt) {
  * it takes ownership.  Returns a null pointer on failure. */
 struct dir *
 dir_open (struct inode *inode) {
+	// /**/printf("\n------- dir_open -------\n");
 	struct dir *dir = calloc (1, sizeof *dir);
 	if (inode != NULL && dir != NULL) {
 		dir->inode = inode;
 		dir->pos = 0;
+		// /**/printf("------- dir_open end (inode != NULL && dir != NULL) -------\n\n");
 		return dir;
 	} else {
 		inode_close (inode);
 		free (dir);
+		// /**/printf("------- dir_open end else -------\n\n");
 		return NULL;
 	}
 }
@@ -46,6 +51,8 @@ dir_open (struct inode *inode) {
  * Return true if successful, false on failure. */
 struct dir *
 dir_open_root (void) {
+	// /**/printf("\n------- dir_open_root -------\n");
+	// /**/printf("------- dir_open_root end -------\n\n");
 	return dir_open (inode_open (ROOT_DIR_SECTOR));
 }
 
@@ -53,12 +60,16 @@ dir_open_root (void) {
  * Returns a null pointer on failure. */
 struct dir *
 dir_reopen (struct dir *dir) {
+	// /**/printf("\n------- dir_reopen -------\n");
+	// /**/printf("------- dir_reopen end -------\n\n");
 	return dir_open (inode_reopen (dir->inode));
 }
 
 /* Destroys DIR and frees associated resources. */
 void
 dir_close (struct dir *dir) {
+	// /**/printf("\n------- dir_close -------\n");
+	// /**/printf("------- dir_close end -------\n\n");
 	if (dir != NULL) {
 		inode_close (dir->inode);
 		free (dir);
@@ -68,6 +79,8 @@ dir_close (struct dir *dir) {
 /* Returns the inode encapsulated by DIR. */
 struct inode *
 dir_get_inode (struct dir *dir) {
+	// /**/printf("\n------- dir_get_inode -------\n");
+	// /**/printf("------- dir_get_inode end -------\n\n");
 	return dir->inode;
 }
 
@@ -79,6 +92,7 @@ dir_get_inode (struct dir *dir) {
 static bool
 lookup (const struct dir *dir, const char *name,
 		struct dir_entry *ep, off_t *ofsp) {
+	// /**/printf("\n------- lookup -------\n");
 	struct dir_entry e;
 	size_t ofs;
 
@@ -92,8 +106,10 @@ lookup (const struct dir *dir, const char *name,
 				*ep = e;
 			if (ofsp != NULL)
 				*ofsp = ofs;
+			// /**/printf("------- lookup end true -------\n\n");
 			return true;
 		}
+	// /**/printf("------- lookup end false -------\n\n");
 	return false;
 }
 
@@ -104,6 +120,7 @@ lookup (const struct dir *dir, const char *name,
 bool
 dir_lookup (const struct dir *dir, const char *name,
 		struct inode **inode) {
+	// /**/printf("\n------- dir_lookup -------\n");
 	struct dir_entry e;
 
 	ASSERT (dir != NULL);
@@ -114,6 +131,7 @@ dir_lookup (const struct dir *dir, const char *name,
 	else
 		*inode = NULL;
 
+	// /**/printf("------- dir_lookup end -------\n\n");
 	return *inode != NULL;
 }
 
@@ -125,6 +143,7 @@ dir_lookup (const struct dir *dir, const char *name,
  * error occurs. */
 bool
 dir_add (struct dir *dir, const char *name, disk_sector_t inode_sector) {
+	// /**/printf("\n------- dir_add -------\n");
 	struct dir_entry e;
 	off_t ofs;
 	bool success = false;
@@ -133,8 +152,10 @@ dir_add (struct dir *dir, const char *name, disk_sector_t inode_sector) {
 	ASSERT (name != NULL);
 
 	/* Check NAME for validity. */
-	if (*name == '\0' || strlen (name) > NAME_MAX)
+	if (*name == '\0' || strlen (name) > NAME_MAX) {
+		// /**/printf("------- dir_add end false -------\n\n");
 		return false;
+	}
 
 	/* Check that NAME is not in use. */
 	if (lookup (dir, name, NULL, NULL))
@@ -159,6 +180,7 @@ dir_add (struct dir *dir, const char *name, disk_sector_t inode_sector) {
 	success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
 
 done:
+	// /**/printf("------- dir_add end success -------\n\n");
 	return success;
 }
 
@@ -167,6 +189,7 @@ done:
  * which occurs only if there is no file with the given NAME. */
 bool
 dir_remove (struct dir *dir, const char *name) {
+	// /**/printf("\n------- dir_remove -------\n");
 	struct dir_entry e;
 	struct inode *inode = NULL;
 	bool success = false;
@@ -195,6 +218,7 @@ dir_remove (struct dir *dir, const char *name) {
 
 done:
 	inode_close (inode);
+	// /**/printf("------- dir_remove end true -------\n\n");
 	return success;
 }
 
@@ -203,14 +227,17 @@ done:
  * contains no more entries. */
 bool
 dir_readdir (struct dir *dir, char name[NAME_MAX + 1]) {
+	// /**/printf("\n------- dir_readdir -------\n");
 	struct dir_entry e;
 
 	while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e) {
 		dir->pos += sizeof e;
 		if (e.in_use) {
 			strlcpy (name, e.name, NAME_MAX + 1);
+			// /**/printf("------- dir_readdir end true -------\n\n");
 			return true;
 		}
 	}
+	// /**/printf("------- dir_readdir end false -------\n\n");
 	return false;
 }

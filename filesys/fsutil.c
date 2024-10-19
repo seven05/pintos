@@ -14,6 +14,7 @@
 /* List files in the root directory. */
 void
 fsutil_ls (char **argv UNUSED) {
+	// /**/printf("\n------- fsutil_ls -------\n");
 	struct dir *dir;
 	char name[NAME_MAX + 1];
 
@@ -24,12 +25,14 @@ fsutil_ls (char **argv UNUSED) {
 	while (dir_readdir (dir, name))
 		printf ("%s\n", name);
 	printf ("End of listing.\n");
+	// /**/printf("------- fsutil_ls end -------\n\n");
 }
 
 /* Prints the contents of file ARGV[1] to the system console as
  * hex and ASCII. */
 void
 fsutil_cat (char **argv) {
+	// /**/printf("\n------- fsutil_cat -------\n");
 	const char *file_name = argv[1];
 
 	struct file *file;
@@ -50,16 +53,19 @@ fsutil_cat (char **argv) {
 	}
 	palloc_free_page (buffer);
 	file_close (file);
+	// /**/printf("------- fsutil_cat end -------\n\n");
 }
 
 /* Deletes file ARGV[1]. */
 void
 fsutil_rm (char **argv) {
+	// /**/printf("\n------- fsutil_rm -------\n");
 	const char *file_name = argv[1];
 
 	printf ("Deleting '%s'...\n", file_name);
 	if (!filesys_remove (file_name))
 		PANIC ("%s: delete failed\n", file_name);
+	// /**/printf("------- fsutil_rm end -------\n\n");
 }
 
 /* Copies from the "scratch" disk, hdc or hd1:0 to file ARGV[1]
@@ -76,6 +82,7 @@ fsutil_rm (char **argv) {
  * fsutil_get(), so all `put's should precede all `get's. */
 void
 fsutil_put (char **argv) {
+	// /**/printf("\n------- fsutil_put -------\n");
 	static disk_sector_t sector = 0;
 
 	const char *file_name = argv[1];
@@ -124,6 +131,7 @@ fsutil_put (char **argv) {
 	/* Finish up. */
 	file_close (dst);
 	free (buffer);
+	// /**/printf("------- fsutil_put end -------\n\n");
 }
 
 /* Copies file FILE_NAME from the file system to the scratch disk.
@@ -139,6 +147,7 @@ fsutil_put (char **argv) {
  * fsutil_put(), so all `put's should precede all `get's. */
 void
 fsutil_get (char **argv) {
+	// /**/printf("\n------- fsutil_get -------\n");
 	static disk_sector_t sector = 0;
 
 	const char *file_name = argv[1];
@@ -186,4 +195,5 @@ fsutil_get (char **argv) {
 	/* Finish up. */
 	file_close (src);
 	free (buffer);
+	// /**/printf("------- fsutil_get end -------\n\n");
 }

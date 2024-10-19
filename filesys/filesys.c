@@ -17,6 +17,7 @@ static void do_format (void);
  * If FORMAT is true, reformats the file system. */
 void
 filesys_init (bool format) {
+	// /**/printf("\n------- filesys_init -------\n");
 	filesys_disk = disk_get (0, 1);
 	if (filesys_disk == NULL)
 		PANIC ("hd0:1 (hdb) not present, file system initialization failed");
@@ -39,18 +40,21 @@ filesys_init (bool format) {
 
 	free_map_open ();
 #endif
+// /**/printf("------- filesys_init end -------\n\n");
 }
 
 /* Shuts down the file system module, writing any unwritten data
  * to disk. */
 void
 filesys_done (void) {
+	// /**/printf("\n------- filesys_done -------\n");
 	/* Original FS */
 #ifdef EFILESYS
 	fat_close ();
 #else
 	free_map_close ();
 #endif
+	// /**/printf("------- filesys_done end -------\n\n");
 }
 
 /* Creates a file named NAME with the given INITIAL_SIZE.
@@ -59,6 +63,7 @@ filesys_done (void) {
  * or if internal memory allocation fails. */
 bool
 filesys_create (const char *name, off_t initial_size) {
+	// /**/printf("\n------- filesys_create -------\n");
 	disk_sector_t inode_sector = 0;
 	struct dir *dir = dir_open_root ();
 	bool success = (dir != NULL
@@ -69,6 +74,7 @@ filesys_create (const char *name, off_t initial_size) {
 		free_map_release (inode_sector, 1);
 	dir_close (dir);
 
+	// /**/printf("------- filesys_create end -------\n\n");
 	return success;
 }
 
@@ -79,6 +85,7 @@ filesys_create (const char *name, off_t initial_size) {
  * or if an internal memory allocation fails. */
 struct file *
 filesys_open (const char *name) {
+	// /**/printf("\n------- filesys_open -------\n");
 	struct dir *dir = dir_open_root ();
 	struct inode *inode = NULL;
 
@@ -86,6 +93,7 @@ filesys_open (const char *name) {
 		dir_lookup (dir, name, &inode);
 	dir_close (dir);
 
+	// /**/printf("------- filesys_open end -------\n\n");
 	return file_open (inode);
 }
 
@@ -95,16 +103,19 @@ filesys_open (const char *name) {
  * or if an internal memory allocation fails. */
 bool
 filesys_remove (const char *name) {
+	// /**/printf("\n------- filesys_remove -------\n");
 	struct dir *dir = dir_open_root ();
 	bool success = dir != NULL && dir_remove (dir, name);
 	dir_close (dir);
 
+	// /**/printf("------- filesys_remove end -------\n\n");
 	return success;
 }
 
 /* Formats the file system. */
 static void
 do_format (void) {
+	// /**/printf("\n------- do_format -------\n");
 	printf ("Formatting file system...");
 
 #ifdef EFILESYS
@@ -119,4 +130,5 @@ do_format (void) {
 #endif
 
 	printf ("done.\n");
+	// /**/printf("------- do_format end -------\n\n");
 }

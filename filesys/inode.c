@@ -7,6 +7,8 @@
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
 
+#include "filesys/fat.h"
+
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
@@ -23,6 +25,8 @@ struct inode_disk {
  * bytes long. */
 static inline size_t
 bytes_to_sectors (off_t size) {
+	// /**/printf("\n------- bytes_to_sectors -------\n");
+	// /**/printf("------- bytes_to_sectors end -------\n\n");
 	return DIV_ROUND_UP (size, DISK_SECTOR_SIZE);
 }
 
@@ -42,11 +46,16 @@ struct inode {
  * POS. */
 static disk_sector_t
 byte_to_sector (const struct inode *inode, off_t pos) {
+	// /**/printf("\n------- byte_to_sector -------\n");
 	ASSERT (inode != NULL);
-	if (pos < inode->data.length)
+	if (pos < inode->data.length) {
+		// /**/printf("------- byte_to_sector end (pos < inode->data.length) -------\n\n");
 		return inode->data.start + pos / DISK_SECTOR_SIZE;
-	else
+	}
+	else {
+		// /**/printf("------- byte_to_sector end else -------\n\n");
 		return -1;
+	}
 }
 
 /* List of open inodes, so that opening a single inode twice
@@ -56,7 +65,9 @@ static struct list open_inodes;
 /* Initializes the inode module. */
 void
 inode_init (void) {
+	// /**/printf("\n------- inode_init -------\n");
 	list_init (&open_inodes);
+	// /**/printf("------- inode_init end -------\n\n");
 }
 
 /* Initializes an inode with LENGTH bytes of data and
@@ -65,7 +76,8 @@ inode_init (void) {
  * Returns true if successful.
  * Returns false if memory or disk allocation fails. */
 bool
-inode_create (disk_sector_t sector, off_t length) {
+inode_create (disk_sector_t sector, off_t length/* , bool isdir */) {
+	// /**/printf("\n------- inode_create -------\n");
 	struct inode_disk *disk_inode = NULL;
 	bool success = false;
 
@@ -80,6 +92,40 @@ inode_create (disk_sector_t sector, off_t length) {
 		size_t sectors = bytes_to_sectors (length);
 		disk_inode->length = length;
 		disk_inode->magic = INODE_MAGIC;
+		
+		// disk_inode->isdir = isdir;
+// #ifdef EFILESYS
+// 		cluster_t clst = sector_to_cluster(sector); 
+// 		cluster_t new_clst = clst;
+
+// 		if (sectors == 0)
+// 			disk_inode->start = cluster_to_sector(fat_create_chain(new_clst));
+
+// 		int i;
+// 		for (int i = 0; i < sectors; i++){
+// 			new_clst = fat_create_chain(new_clst);
+// 			if (new_clst == 0){  
+// 				fat_remove_chain(clst, 0);
+// 				free(disk_inode);
+// 				return false;
+// 			}
+// 			if (i == 0){
+// 				clst = new_clst;
+// 				disk_inode->start = cluster_to_sector(new_clst);
+// 			}
+// 		}
+
+// 		disk_write(filesys_disk, sector, disk_inode);
+// 		if (sectors > 0){
+// 			static char zeros[DISK_SECTOR_SIZE];
+// 			for(i = 0; i < sectors; i++){
+// 				ASSERT(clst != 0 || clst != EOChain);
+// 				disk_write(filesys_disk, cluster_to_sector(clst), zeros);
+// 				clst = fat_get(clst);
+// 			}
+// 		}
+// 		success = true;
+// #else
 		if (free_map_allocate (sectors, &disk_inode->start)) {
 			disk_write (filesys_disk, sector, disk_inode);
 			if (sectors > 0) {
@@ -91,8 +137,10 @@ inode_create (disk_sector_t sector, off_t length) {
 			}
 			success = true; 
 		} 
+// #endif
 		free (disk_inode);
 	}
+	// /**/printf("------- inode_create end -------\n\n");
 	return success;
 }
 
@@ -101,6 +149,7 @@ inode_create (disk_sector_t sector, off_t length) {
  * Returns a null pointer if memory allocation fails. */
 struct inode *
 inode_open (disk_sector_t sector) {
+	// /**/printf("\n------- inode_open -------\n");
 	struct list_elem *e;
 	struct inode *inode;
 
@@ -110,14 +159,17 @@ inode_open (disk_sector_t sector) {
 		inode = list_entry (e, struct inode, elem);
 		if (inode->sector == sector) {
 			inode_reopen (inode);
+			// /**/printf("------- inode_open end (inode->sector == sector) -------\n\n");
 			return inode; 
 		}
 	}
 
 	/* Allocate memory. */
 	inode = malloc (sizeof *inode);
-	if (inode == NULL)
+	if (inode == NULL) {
+		// /**/printf("------- inode_open end (inode == NULL) -------\n\n");
 		return NULL;
+	}
 
 	/* Initialize. */
 	list_push_front (&open_inodes, &inode->elem);
@@ -126,20 +178,25 @@ inode_open (disk_sector_t sector) {
 	inode->deny_write_cnt = 0;
 	inode->removed = false;
 	disk_read (filesys_disk, inode->sector, &inode->data);
+	// /**/printf("------- inode_open end -------\n\n");
 	return inode;
 }
 
 /* Reopens and returns INODE. */
 struct inode *
 inode_reopen (struct inode *inode) {
+	// /**/printf("\n------- inode_reopen -------\n");
 	if (inode != NULL)
 		inode->open_cnt++;
+	// /**/printf("------- inode_reopen end -------\n\n");
 	return inode;
 }
 
 /* Returns INODE's inode number. */
 disk_sector_t
 inode_get_inumber (const struct inode *inode) {
+	// /**/printf("\n------- inode_get_inumber -------\n");
+	// /**/printf("------- inode_get_inumber end -------\n\n");
 	return inode->sector;
 }
 
@@ -148,9 +205,12 @@ inode_get_inumber (const struct inode *inode) {
  * If INODE was also a removed inode, frees its blocks. */
 void
 inode_close (struct inode *inode) {
+	// /**/printf("\n------- inode_close -------\n");
 	/* Ignore null pointer. */
-	if (inode == NULL)
+	if (inode == NULL) {
+		// /**/printf("------- inode_close end (inode == NULL) -------\n\n");
 		return;
+	}
 
 	/* Release resources if this was the last opener. */
 	if (--inode->open_cnt == 0) {
@@ -159,6 +219,9 @@ inode_close (struct inode *inode) {
 
 		/* Deallocate blocks if removed. */
 		if (inode->removed) {
+// #ifdef EFILESYS
+// 			fat_remove_chain(sector_to_cluster(inode->sector), 0);
+// #endif
 			free_map_release (inode->sector, 1);
 			free_map_release (inode->data.start,
 					bytes_to_sectors (inode->data.length)); 
@@ -166,14 +229,17 @@ inode_close (struct inode *inode) {
 
 		free (inode); 
 	}
+	// /**/printf("------- inode_close end -------\n\n");
 }
 
 /* Marks INODE to be deleted when it is closed by the last caller who
  * has it open. */
 void
 inode_remove (struct inode *inode) {
+	// /**/printf("\n------- inode_remove -------\n");
 	ASSERT (inode != NULL);
 	inode->removed = true;
+	// /**/printf("------- inode_remove end -------\n\n");
 }
 
 /* Reads SIZE bytes from INODE into BUFFER, starting at position OFFSET.
@@ -181,6 +247,7 @@ inode_remove (struct inode *inode) {
  * than SIZE if an error occurs or end of file is reached. */
 off_t
 inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset) {
+	// /**/printf("\n------- inode_read_at -------\n");
 	uint8_t *buffer = buffer_;
 	off_t bytes_read = 0;
 	uint8_t *bounce = NULL;
@@ -222,6 +289,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset) {
 	}
 	free (bounce);
 
+	// /**/printf("------- inode_read_at end -------\n\n");
 	return bytes_read;
 }
 
@@ -233,12 +301,15 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset) {
 off_t
 inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 		off_t offset) {
+	// /**/printf("\n------- inode_write_at -------\n");
 	const uint8_t *buffer = buffer_;
 	off_t bytes_written = 0;
 	uint8_t *bounce = NULL;
 
-	if (inode->deny_write_cnt)
+	if (inode->deny_write_cnt) {
+		// /**/printf("------- inode_write_at end (inode->deny_write_cnt) -------\n\n");
 		return 0;
+	}
 
 	while (size > 0) {
 		/* Sector to write, starting byte offset within sector. */
@@ -284,6 +355,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 	}
 	free (bounce);
 
+	// /**/printf("------- inode_write_at end -------\n\n");
 	return bytes_written;
 }
 
@@ -292,8 +364,10 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 	void
 inode_deny_write (struct inode *inode) 
 {
+	// /**/printf("\n------- inode_deny_write -------\n");
 	inode->deny_write_cnt++;
 	ASSERT (inode->deny_write_cnt <= inode->open_cnt);
+	// /**/printf("------- inode_deny_write end -------\n\n");
 }
 
 /* Re-enables writes to INODE.
@@ -301,13 +375,17 @@ inode_deny_write (struct inode *inode)
  * inode_deny_write() on the inode, before closing the inode. */
 void
 inode_allow_write (struct inode *inode) {
+	// /**/printf("\n------- inode_allow_write -------\n");
 	ASSERT (inode->deny_write_cnt > 0);
 	ASSERT (inode->deny_write_cnt <= inode->open_cnt);
 	inode->deny_write_cnt--;
+	// /**/printf("------- inode_allow_write end -------\n\n");
 }
 
 /* Returns the length, in bytes, of INODE's data. */
 off_t
 inode_length (const struct inode *inode) {
+	// /**/printf("\n------- inode_length -------\n");
+	// /**/printf("------- inode_length end -------\n\n");
 	return inode->data.length;
 }

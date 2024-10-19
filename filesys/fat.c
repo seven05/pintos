@@ -33,6 +33,7 @@ void fat_fs_init (void);
 
 void
 fat_init (void) {
+	// /**/printf("\n------- fat_init -------\n");
 	fat_fs = calloc (1, sizeof (struct fat_fs));
 	if (fat_fs == NULL)
 		PANIC ("FAT init failed");
@@ -49,10 +50,12 @@ fat_init (void) {
 	if (fat_fs->bs.magic != FAT_MAGIC)
 		fat_boot_create ();
 	fat_fs_init ();
+	// /**/printf("------- fat_init end -------\n\n");
 }
 
 void
 fat_open (void) {
+	// /**/printf("\n------- fat_open -------\n");
 	fat_fs->fat = calloc (fat_fs->fat_length, sizeof (cluster_t));
 	if (fat_fs->fat == NULL)
 		PANIC ("FAT load failed");
@@ -78,11 +81,13 @@ fat_open (void) {
 			free (bounce);
 		}
 	}
+	// /**/printf("------- fat_open end -------\n\n");
 }
 
 void
 fat_close (void) {
 	// Write FAT boot sector
+	// /**/printf("\n------- fat_close -------\n");
 	uint8_t *bounce = calloc (1, DISK_SECTOR_SIZE);
 	if (bounce == NULL)
 		PANIC ("FAT close failed");
@@ -111,10 +116,12 @@ fat_close (void) {
 			free (bounce);
 		}
 	}
+	// /**/printf("------- fat_close end -------\n\n");
 }
 
 void
 fat_create (void) {
+	// /**/printf("\n------- fat_createfat_create -------\n");
 	// Create FAT boot
 	fat_boot_create ();
 	fat_fs_init ();
@@ -133,10 +140,12 @@ fat_create (void) {
 		PANIC ("FAT create failed due to OOM");
 	disk_write (filesys_disk, cluster_to_sector (ROOT_DIR_CLUSTER), buf);
 	free (buf);
+	// /**/printf("------- fat_createfat_create end -------\n\n");
 }
 
 void
 fat_boot_create (void) {
+	// /**/printf("\n------- fat_boot_create -------\n");
 	unsigned int fat_sectors =
 	    (disk_size (filesys_disk) - 1)
 	    / (DISK_SECTOR_SIZE / sizeof (cluster_t) * SECTORS_PER_CLUSTER + 1) + 1;
@@ -148,13 +157,19 @@ fat_boot_create (void) {
 	    .fat_sectors = fat_sectors,
 	    .root_dir_cluster = ROOT_DIR_CLUSTER,
 	};
+	// /**/printf("------- fat_boot_create end -------\n\n");
 }
 
 void
 fat_fs_init (void) {
 	/* TODO: Your code goes here. */
+	// /**/printf("\n------- fat_fs_init -------\n");
 	fat_fs->fat_length = disk_size(filesys_disk) - fat_fs->bs.fat_sectors - BOOT_SECTOR_SIZE;	// 데이터블럭 사이즈
 	fat_fs->data_start = (disk_sector_t)(fat_fs->bs.fat_start + fat_fs->bs.fat_sectors);
+	// /**/printf("fat_fs->fat_length : %d\n", fat_fs->fat_length);
+	// /**/printf("fat_fs->data_start : %d\n", fat_fs->data_start);
+	// /**/printf("fat_fs->bs.fat_sectors : %d\n", fat_fs->bs.fat_sectors);
+	// /**/printf("------- fat_fs_init end -------\n\n");
 }
 
 /*----------------------------------------------------------------------------*/
@@ -167,6 +182,7 @@ fat_fs_init (void) {
 cluster_t
 fat_create_chain (cluster_t clst) {
 	/* TODO: Your code goes here. */
+	// /**/printf("\n------- fat_create_chain -------\n");
 	cluster_t empty;
 
 	for (empty=fat_fs->bs.root_dir_cluster+1; empty<fat_fs->fat_length; empty++) {
@@ -191,6 +207,7 @@ fat_create_chain (cluster_t clst) {
 
 	fat_put(temp, empty);
 
+	// /**/printf("------- fat_create_chain end -------\n\n");
 	return empty;
 }
 
@@ -199,8 +216,11 @@ fat_create_chain (cluster_t clst) {
 void
 fat_remove_chain (cluster_t clst, cluster_t pclst) {
 	/* TODO: Your code goes here. */
+	// /**/printf("\n------- fat_remove_chain -------\n");
 	cluster_t now_clst = clst;
 	cluster_t next;
+	// /**/print_fat_chain(clst);
+	// /**/printf("\n====\n\n");
 
 	if (fat_get(pclst) == clst) {
 		fat_put(pclst, EOChain);
@@ -212,25 +232,65 @@ fat_remove_chain (cluster_t clst, cluster_t pclst) {
 	}
 	fat_put(now_clst, 0);
 
+	// /**/print_fat_chain(clst);
+	// /**/printf("------- fat_remove_chain end -------\n\n");
 }
 
 /* Update a value in the FAT table. */
 void
 fat_put (cluster_t clst, cluster_t val) {
 	/* TODO: Your code goes here. */
+	// /**/printf("\n------- fat_put -------\n");
 	fat_fs->fat[clst] = val;
+	// /**/printf("------- fat_put end -------\n\n");
 }
 
 /* Fetch a value in the FAT table. */
 cluster_t
 fat_get (cluster_t clst) {
 	/* TODO: Your code goes here. */
+	// /**/printf("\n------- fat_get -------\n");
 	return fat_fs->fat[clst];
+	// /**/printf("------- fat_get end -------\n\n");
 }
 
 /* Covert a cluster # to a sector number. */
 disk_sector_t
 cluster_to_sector (cluster_t clst) {
 	/* TODO: Your code goes here. */
+	// /**/printf("\n------- cluster_to_sector -------\n");
+	// /**/printf("------- cluster_to_sector end -------\n\n");
 	return fat_fs->data_start + clst /* -1 */;
+}
+
+// FAT 체인을 출력하는 함수
+void print_fat_chain(cluster_t start_clst) {
+    cluster_t current_clst = start_clst;
+
+    if (current_clst == 0) {
+        printf("Invalid start cluster.\n");
+        return;
+    }
+
+    printf("FAT chain starting at cluster %u:\n", current_clst);
+
+    // 클러스터 체인을 EOF가 나올 때까지 따라감
+    while (current_clst != EOChain) {
+        printf("%u -> ", current_clst);  // 현재 클러스터 출력
+
+        // 다음 클러스터를 FAT 테이블에서 가져옴
+        current_clst = fat_get(current_clst);
+
+        // 다음 클러스터가 EOF인지 확인
+        if (current_clst == EOChain) {
+            printf("EOF\n");
+            break;
+        }
+
+        // 만약 에러가 있거나 잘못된 값일 경우
+        if (current_clst == 0) {
+            printf("Error: Invalid cluster in chain.\n");
+            break;
+        }
+    }
 }
