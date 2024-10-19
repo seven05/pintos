@@ -19,7 +19,7 @@ struct fat_boot {
 /* FAT FS */
 struct fat_fs {
 	struct fat_boot bs;
-	unsigned int *fat;
+	unsigned int *fat;			// FAT table
 	unsigned int fat_length;
 	disk_sector_t data_start;
 	cluster_t last_clst;
@@ -153,6 +153,8 @@ fat_boot_create (void) {
 void
 fat_fs_init (void) {
 	/* TODO: Your code goes here. */
+	fat_fs->fat_length = disk_size(filesys_disk) - fat_fs->bs.fat_sectors - BOOT_SECTOR_SIZE;	// 데이터블럭 사이즈
+	fat_fs->data_start = (disk_sector_t)(fat_fs->bs.fat_start + fat_fs->bs.fat_sectors);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -165,6 +167,31 @@ fat_fs_init (void) {
 cluster_t
 fat_create_chain (cluster_t clst) {
 	/* TODO: Your code goes here. */
+	cluster_t empty;
+
+	for (empty=fat_fs->bs.root_dir_cluster+1; empty<fat_fs->fat_length; empty++) {
+		if (fat_get(empty) == 0) {
+			break;
+		}
+	}
+	if (empty >= fat_fs->fat_length) {
+		return 0;
+	}
+
+	fat_put(empty, EOChain);
+
+	if (clst == 0) {
+		return empty;
+	}
+
+	cluster_t temp = clst;
+	while (fat_get(temp) != EOChain) {
+		temp = fat_get(temp);
+	}
+
+	fat_put(temp, empty);
+
+	return empty;
 }
 
 /* Remove the chain of clusters starting from CLST.
@@ -172,22 +199,38 @@ fat_create_chain (cluster_t clst) {
 void
 fat_remove_chain (cluster_t clst, cluster_t pclst) {
 	/* TODO: Your code goes here. */
+	cluster_t now_clst = clst;
+	cluster_t next;
+
+	if (fat_get(pclst) == clst) {
+		fat_put(pclst, EOChain);
+	}
+	while (now_clst != EOChain) {
+		next = fat_get(now_clst);
+		fat_put(now_clst, 0);
+		now_clst = next;
+	}
+	fat_put(now_clst, 0);
+
 }
 
 /* Update a value in the FAT table. */
 void
 fat_put (cluster_t clst, cluster_t val) {
 	/* TODO: Your code goes here. */
+	fat_fs->fat[clst] = val;
 }
 
 /* Fetch a value in the FAT table. */
 cluster_t
 fat_get (cluster_t clst) {
 	/* TODO: Your code goes here. */
+	return fat_fs->fat[clst];
 }
 
 /* Covert a cluster # to a sector number. */
 disk_sector_t
 cluster_to_sector (cluster_t clst) {
 	/* TODO: Your code goes here. */
+	return fat_fs->data_start + clst /* -1 */;
 }
