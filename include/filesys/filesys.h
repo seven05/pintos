@@ -8,6 +8,10 @@
 #define FREE_MAP_SECTOR 0       /* Free map file inode sector. */
 #define ROOT_DIR_SECTOR 1       /* Root directory file inode sector. */
 
+/** #Project 4: Subdirectories - define types */
+#define FILE_TYPE 0
+#define DIR_TYPE  1
+
 /* Disk used for file system. */
 extern struct disk *filesys_disk;
 
@@ -16,5 +20,12 @@ void filesys_done (void);
 bool filesys_create (const char *name, off_t initial_size);
 struct file *filesys_open (const char *name);
 bool filesys_remove (const char *name);
+
+#ifdef FILESYS
+/** #Project 4: Subdirectories */
+struct dir *parse_path(char *path_name, char *file_name);
+bool filesys_chdir(const char *dir_name);
+bool filesys_mkdir(const char *dir_name);
+#endif
 
 #endif /* filesys/filesys.h */

@@ -213,28 +213,42 @@ fat_create_chain (cluster_t clst) {
 
 /* Remove the chain of clusters starting from CLST.
  * If PCLST is 0, assume CLST as the start of the chain. */
-void
-fat_remove_chain (cluster_t clst, cluster_t pclst) {
-	/* TODO: Your code goes here. */
-	// /**/printf("\n------- fat_remove_chain -------\n");
-	cluster_t now_clst = clst;
-	cluster_t next;
-	// /**/print_fat_chain(clst);
-	// /**/printf("\n====\n\n");
+void fat_remove_chain(cluster_t clst, cluster_t pclst) {
+    /* TODO: Your code goes here. */
+    cluster_t target = clst;
 
-	if (fat_get(pclst) == clst) {
-		fat_put(pclst, EOChain);
-	}
-	while (now_clst != EOChain) {
-		next = fat_get(now_clst);
-		fat_put(now_clst, 0);
-		now_clst = next;
-	}
-	fat_put(now_clst, 0);
+    while (fat_get(target) != EOChain) {  // 순회하면서 FAT에서 할당 해제
+        cluster_t next = fat_get(target);
+        fat_put(target, 0);
+        target = next;
+    }
 
-	// /**/print_fat_chain(clst);
-	// /**/printf("------- fat_remove_chain end -------\n\n");
+    if (!pclst)  // pcluster가 입력됬으면 pcluster를 chain으로 끝으로 만듬 */
+        fat_put(pclst, EOChain);
 }
+// void
+// fat_remove_chain (cluster_t clst, cluster_t pclst) {
+// 	/* TODO: Your code goes here. */
+// 	// /**/printf("\n------- fat_remove_chain -------\n");
+
+// 	cluster_t now_clst = clst;
+// 	cluster_t next;
+// 	// /**/print_fat_chain(clst);
+// 	// /**/printf("\n====\n\n");
+
+// 	if (fat_get(pclst) == clst) {
+// 		fat_put(pclst, EOChain);
+// 	}
+// 	while (now_clst != EOChain) {
+// 		next = fat_get(now_clst);
+// 		fat_put(now_clst, 0);
+// 		now_clst = next;
+// 	}
+// 	fat_put(now_clst, 0);
+
+// 	// /**/print_fat_chain(clst);
+// 	// /**/printf("------- fat_remove_chain end -------\n\n");
+// }
 
 /* Update a value in the FAT table. */
 void
@@ -261,6 +275,12 @@ cluster_to_sector (cluster_t clst) {
 	// /**/printf("\n------- cluster_to_sector -------\n");
 	// /**/printf("------- cluster_to_sector end -------\n\n");
 	return fat_fs->data_start + clst /* -1 */;
+}
+
+/** Project 4: Indexed and Extensible Files - 섹터 넘버를 clst로 변환해서 리턴 */
+cluster_t sector_to_cluster(disk_sector_t sctr) {
+	cluster_t clst = sctr - fat_fs->data_start;
+	return clst < 2 ? 0 : clst;
 }
 
 // FAT 체인을 출력하는 함수

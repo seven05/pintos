@@ -45,4 +45,10 @@ void close (int fd);
 void *mmap (void *addr, size_t length, int writable, int fd, off_t offset);
 void munmap (void *addr);
 
+/** Project 4: Subdirectories */
+bool isdir(int fd);
+bool chdir (const char *dir);
+bool mkdir (const char *dir);
+bool readdir (int fd, char name[READDIR_MAX_LEN + 1]);
+
 #endif /* userprog/syscall.h */

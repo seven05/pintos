@@ -8,6 +8,10 @@
 #include "filesys/directory.h"
 #include "devices/disk.h"
 
+#include "filesys/fat.h"
+/** #Project 4: File System and Soft Links */
+#include "threads/thread.h"
+
 /* The disk that contains the file system. */
 struct disk *filesys_disk;
 
@@ -64,14 +68,15 @@ filesys_done (void) {
 bool
 filesys_create (const char *name, off_t initial_size) {
 	// /**/printf("\n------- filesys_create -------\n");
-	disk_sector_t inode_sector = 0;
+	cluster_t inode_cluster = fat_create_chain(0);
+	disk_sector_t inode_sector = cluster_to_sector(inode_cluster);
 	struct dir *dir = dir_open_root ();
 	bool success = (dir != NULL
-			&& free_map_allocate (1, &inode_sector)
-			&& inode_create (inode_sector, initial_size)
+			&& inode_create (inode_sector, initial_size, FILE_TYPE)
 			&& dir_add (dir, name, inode_sector));
 	if (!success && inode_sector != 0)
-		free_map_release (inode_sector, 1);
+		fat_remove_chain (inode_cluster, 1);
+
 	dir_close (dir);
 
 	// /**/printf("------- filesys_create end -------\n\n");
@@ -121,6 +126,11 @@ do_format (void) {
 #ifdef EFILESYS
 	/* Create FAT and save it to the disk. */
 	fat_create ();
+
+	/* Root Directory 생성 */
+	disk_sector_t root = cluster_to_sector(ROOT_DIR_CLUSTER);
+	if (!dir_create(root, 16))
+		PANIC("root directory creation failed");
 	fat_close ();
 #else
 	free_map_create ();
@@ -131,4 +141,14 @@ do_format (void) {
 
 	printf ("done.\n");
 	// /**/printf("------- do_format end -------\n\n");
+}
+
+bool filesys_chdir(const char *dir_name) {
+	bool success = false;
+	return success;
+}
+
+bool filesys_mkdir(const char *dir_name) {
+	bool success = false;
+	return success;
 }

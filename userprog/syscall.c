@@ -16,6 +16,10 @@
 #include "threads/synch.h"
 #include <string.h>
 
+/** #Project 4:  */
+#include "filesys/directory.h"
+#include "filesys/inode.h"
+
 typedef uint32_t disk_sector_t;
 
 struct file {
@@ -160,6 +164,24 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_MUNMAP:
 			// /**/printf("SYS_MUNMAP\n");
 			munmap((void *)arg1);
+			break;
+		case SYS_ISDIR:
+			f->R.rax = isdir(f->R.rdi);
+			break;
+		case SYS_CHDIR:
+			f->R.rax = chdir(f->R.rdi);
+			break;
+		case SYS_MKDIR:
+			f->R.rax = mkdir(f->R.rdi);
+			break;
+		case SYS_READDIR:
+			f->R.rax = readdir(f->R.rdi, f->R.rsi);
+			break;
+		case SYS_INUMBER:
+			f->R.rax = inumber(f->R.rdi);
+			break;
+		case SYS_SYMLINK:
+			f->R.rax = symlink(f->R.rdi, f->R.rsi);
 			break;
 		default:
 			// /**/printf("default\n");
@@ -392,4 +414,46 @@ struct file *get_file_by_descriptor(int fd){
 		return NULL;
 	struct thread *t = thread_current();
 	return t->fd_table[fd];
+}
+
+/** #Project 4: Subdirectories - Changes the current working directory of the process to dir, which may be relative or absolute. */
+bool chdir(const char *dir) {
+	return filesys_chdir(dir);
+}
+
+/** #Project 4: Subdirectories - Creates the directory named dir, which may be relative or absolute. */
+bool mkdir(const char *dir) {
+	return filesys_mkdir(dir);
+}
+
+/** #Project 4: Subdirectories - Reads a directory entry from file descriptor fd, which must represent a directory. */
+bool readdir(int fd, char name[READDIR_MAX_LEN + 1]) {
+	struct file *file = get_file_by_descriptor(fd);
+
+	if (!file || !inode_is_dir(file->inode))
+		return false;
+
+	struct dir *dir = file;
+
+	return dir_readdir(dir, name);
+}
+
+/** #Project 4: Subdirectories - Returns true if fd represents a directory, false if it represents an ordinary file. */
+bool isdir(int fd) {
+	struct file *file = get_file_by_descriptor(fd);
+	if (!file)
+		return false;
+	return inode_is_dir(file->inode);
+}
+
+/** #Project 4: Subdirectories - Returns the inode number of the inode associated with fd, which may represent an ordinary file or a directory. */
+int inumber(int fd) {
+	struct file *file = get_file_by_descriptor(fd);
+
+	return inode_get_inumber(file->inode);
+}
+
+/** #Project 4: Soft Links - Creates a symbolic link named linkpath which contains the string target. */
+int symlink(const char *target, const char *linkpath) {
+	return -1; // false
 }
