@@ -181,91 +181,75 @@ fat_fs_init (void) {
  * Returns 0 if fails to allocate a new cluster. */
 cluster_t
 fat_create_chain (cluster_t clst) {
-	/* TODO: Your code goes here. */
+	// TODO: Your code goes here. */
+    //? 1번은 root cluster
 	// /**/printf("\n------- fat_create_chain -------\n");
-	cluster_t empty;
-
-	for (empty=fat_fs->bs.root_dir_cluster+1; empty<fat_fs->fat_length; empty++) {
-		if (fat_get(empty) == 0) {
-			break;
-		}
+	// /**/printf("clst : %d\n", clst);
+	cluster_t i = 2;
+	while (fat_get(i) != 0 && i < fat_fs->fat_length) {
+		++i;
 	}
-	if (empty >= fat_fs->fat_length) {
+	
+    //! FAT가 꽉 찼다
+	if (i == fat_fs->fat_length) {
 		return 0;
 	}
+	
+	fat_put(i, EOChain);
 
-	fat_put(empty, EOChain);
-
+    //! 새로운 chain을 만든다
 	if (clst == 0) {
-		return empty;
+		return i;
 	}
 
-	cluster_t temp = clst;
-	while (fat_get(temp) != EOChain) {
-		temp = fat_get(temp);
+	while(fat_get(clst) != EOChain) {
+		clst = fat_get(clst);
 	}
+	// /**/print_fat_chain(134);
 
-	fat_put(temp, empty);
-
+	fat_put(clst, i);
 	// /**/printf("------- fat_create_chain end -------\n\n");
-	return empty;
+	return i;
 }
 
 /* Remove the chain of clusters starting from CLST.
  * If PCLST is 0, assume CLST as the start of the chain. */
 void fat_remove_chain(cluster_t clst, cluster_t pclst) {
     /* TODO: Your code goes here. */
+	// /**/printf("\n------- fat_remove_chain -------\n");
+	// /**/printf("clst : %d\n", clst);
+	// /**/printf("pclst : %d\n", pclst);
     cluster_t target = clst;
 
     while (fat_get(target) != EOChain) {  // 순회하면서 FAT에서 할당 해제
         cluster_t next = fat_get(target);
+		// /**/printf("target : %d, next : %d\n", target, next);
+
         fat_put(target, 0);
         target = next;
     }
 
     if (!pclst)  // pcluster가 입력됬으면 pcluster를 chain으로 끝으로 만듬 */
         fat_put(pclst, EOChain);
+	// /**/printf("------- fat_remove_chain end -------\n\n");
 }
-// void
-// fat_remove_chain (cluster_t clst, cluster_t pclst) {
-// 	/* TODO: Your code goes here. */
-// 	// /**/printf("\n------- fat_remove_chain -------\n");
-
-// 	cluster_t now_clst = clst;
-// 	cluster_t next;
-// 	// /**/print_fat_chain(clst);
-// 	// /**/printf("\n====\n\n");
-
-// 	if (fat_get(pclst) == clst) {
-// 		fat_put(pclst, EOChain);
-// 	}
-// 	while (now_clst != EOChain) {
-// 		next = fat_get(now_clst);
-// 		fat_put(now_clst, 0);
-// 		now_clst = next;
-// 	}
-// 	fat_put(now_clst, 0);
-
-// 	// /**/print_fat_chain(clst);
-// 	// /**/printf("------- fat_remove_chain end -------\n\n");
-// }
 
 /* Update a value in the FAT table. */
 void
 fat_put (cluster_t clst, cluster_t val) {
 	/* TODO: Your code goes here. */
-	// /**/printf("\n------- fat_put -------\n");
+	// printf("\n------- fat_put -------\n");
 	fat_fs->fat[clst] = val;
-	// /**/printf("------- fat_put end -------\n\n");
+	// printf("------- fat_put end -------\n\n");
 }
 
 /* Fetch a value in the FAT table. */
 cluster_t
 fat_get (cluster_t clst) {
 	/* TODO: Your code goes here. */
-	// /**/printf("\n------- fat_get -------\n");
+	// printf("\n------- fat_get -------\n");
+	// printf("------- fat_get end -------\n\n");
 	return fat_fs->fat[clst];
-	// /**/printf("------- fat_get end -------\n\n");
 }
 
 /* Covert a cluster # to a sector number. */

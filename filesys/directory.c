@@ -254,6 +254,8 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1]) {
 /** #Project 4: File System - Opens the root directory and returns a directory for it.
  * Return true if successful, false on failure. */
 struct dir *dir_open_root(void) {
+	// /**/printf("\n------- dir_open_root -------\n");
+	// /**/printf("------- dir_open_root end -------\n\n");
     return dir_open(inode_open(cluster_to_sector(ROOT_DIR_CLUSTER)));
 }
 
@@ -262,6 +264,7 @@ struct dir *dir_open_root(void) {
  * On success, sets *INODE to an inode for the file, otherwise to
  * a null pointer.  The caller must close *INODE. */
 bool dir_lookup(const struct dir *dir, const char *name, struct inode **inode) {
+	// /**/printf("\n------- dir_lookup -------\n");
     struct dir_entry e;
 
     ASSERT(dir != NULL);
@@ -275,6 +278,7 @@ bool dir_lookup(const struct dir *dir, const char *name, struct inode **inode) {
     if (!strcmp(name, "."))
         *inode = dir_get_inode(dir);
 
+	// /**/printf("------- dir_lookup end -------\n\n");
     return *inode != NULL;
 }
 
@@ -282,6 +286,7 @@ bool dir_lookup(const struct dir *dir, const char *name, struct inode **inode) {
  * Returns true if successful, false on failure,
  * which occurs only if there is no file with the given NAME. */
 bool dir_remove(struct dir *dir, const char *name) {
+	// /**/printf("\n------- dir_remove -------\n");
     struct dir_entry e;
     struct inode *inode = NULL;
     bool success = false;
@@ -313,6 +318,7 @@ bool dir_remove(struct dir *dir, const char *name) {
 
 done:
     inode_close(inode);
+	// /**/printf("------- dir_remove end -------\n\n");
     return success;
 }
 
@@ -320,6 +326,7 @@ done:
  * NAME.  Returns true if successful, false if the directory
  * contains no more entries. */
 bool dir_readdir(struct dir *dir, char name[NAME_MAX + 1]) {
+	// /**/printf("\n------- dir_readdir -------\n");
     struct dir_entry e;
 
     while (inode_read_at(dir->inode, &e, sizeof e, dir->pos) == sizeof e) {
@@ -329,9 +336,11 @@ bool dir_readdir(struct dir *dir, char name[NAME_MAX + 1]) {
 
         if (e.in_use) {
             strlcpy(name, e.name, NAME_MAX + 1);
+			// /**/printf("------- dir_readdir end true -------\n\n");
             return true;
         }
     }
+	// /**/printf("------- dir_readdir end false -------\n\n");
     return false;
 }
 #endif

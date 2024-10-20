@@ -368,6 +368,7 @@ inode_length (const struct inode *inode) {
 
 #ifdef EFILESYS
 static disk_sector_t byte_to_sector(const struct inode *inode, off_t pos) {
+	// /**/printf("\n------- byte_to_sector -------\n");
 	ASSERT(inode != NULL);
 
 	cluster_t target = sector_to_cluster(inode->data.start);
@@ -375,14 +376,15 @@ static disk_sector_t byte_to_sector(const struct inode *inode, off_t pos) {
 	/* file length와 관계없이 pos에 크기에 따라 계속 진행
 		file length보다 pos가 크면 새로운 cluster를 할당해가면서 진행 */
 	while (pos >= DISK_SECTOR_SIZE) {
-		if (fat_get(target) == EOChain)
-			fat_create_chain(target);
+		// if (fat_get(target) == EOChain)
+		// 	fat_create_chain(target);
 
 		target = fat_get(target);
 		pos -= DISK_SECTOR_SIZE;
 	}
 
 	disk_sector_t sector = cluster_to_sector(target);
+	// /**/printf("------- byte_to_sector end -------\n\n");
 	return sector;
 }
 
@@ -390,7 +392,8 @@ static disk_sector_t byte_to_sector(const struct inode *inode, off_t pos) {
  * the new inode to sector SECTOR on the file system disk.
  * Returns true if successful.
  * Returns false if memory or disk allocation fails. */
-bool inode_create(disk_sector_t sector, off_t length, int32_t is_dir) {
+bool inode_create (disk_sector_t sector, off_t length, int32_t is_dir) {
+	// /**/printf("\n------- inode_create -------\n");
 	struct inode_disk *disk_inode = NULL;
 	bool success = false;
 
@@ -402,12 +405,20 @@ bool inode_create(disk_sector_t sector, off_t length, int32_t is_dir) {
 	if (disk_inode != NULL) {
 		cluster_t start_clst = fat_create_chain(0);
 		size_t sectors = bytes_to_sectors(length);
+		// /**/printf("start_clst : %d\n", start_clst);
+		// /**/printf("sectors : %d\n", sectors);
 
 		disk_inode->length = length;
 		disk_inode->magic = INODE_MAGIC;
 		disk_inode->is_dir = is_dir;  // File or directory
 		disk_inode->start = cluster_to_sector(start_clst);
 
+		// /**/printf("disk_inode->length : %d\n", disk_inode->length);
+		// /**/printf("disk_inode->magic : %d\n", disk_inode->magic);
+		// /**/printf("disk_inode->is_dir : %d\n", disk_inode->is_dir);
+		// /**/printf("disk_inode->start : %d\n", disk_inode->start);
+
+		// mytodo : start_clst 유효성 검사
 		/* write disk_inode on disk */
 		disk_write(filesys_disk, sector, disk_inode);
 
@@ -428,6 +439,7 @@ bool inode_create(disk_sector_t sector, off_t length, int32_t is_dir) {
 		success = true;
 	}
 	free(disk_inode);
+	// /**/printf("------- inode_create end -------\n\n");
 	return success;
 }
 
@@ -435,6 +447,9 @@ bool inode_create(disk_sector_t sector, off_t length, int32_t is_dir) {
  * If this was the last reference to INODE, frees its memory.
  * If INODE was also a removed inode, frees its blocks. */
 void inode_close(struct inode *inode) {
+	// /**/printf("\n------- inode_close -------\n");
+	// printf("inode->sector : %d\n", inode->sector);
+	// printf("inode->data.start : %d\n", inode->data.start);
 	/* Ignore null pointer. */
 	if (inode == NULL)
 		return;
@@ -446,31 +461,55 @@ void inode_close(struct inode *inode) {
 
 		/* Deallocate blocks if removed. */
 		if (inode->removed) {
-			fat_remove_chain(inode->sector, 0);
-			// cluster_t clst = sector_to_cluster(inode->sector);  // disk inode 삭제
-			// fat_remove_chain(clst, 0);
-
-			// clst = sector_to_cluster(inode->data.start);  // file data 삭제
-			// fat_remove_chain(clst, 0);
+			// fat_remove_chain(inode->sector, 0);
+			fat_remove_chain (sector_to_cluster(inode->data.start), 0);
 		}
 
 		// disk_write(filesys_disk, inode->sector, &inode->data);  // file close 시 변경사항 저장
 
 		free(inode);
 	}
+	// /**/printf("------- inode_close end -------\n\n");
 }
 
 /** #Project 4: File System - Writes SIZE bytes from BUFFER into INODE, starting at OFFSET.
  * Returns the number of bytes actually written, which may be less than SIZE if end of file is reached or an error occurs.
  * (Normally a write at end of file would extend the inode, but growth is not yet implemented.) */
 off_t inode_write_at(struct inode *inode, const void *buffer_, off_t size, off_t offset) {
+	// /**/printf("\n------- inode_write_at -------\n");
 	const uint8_t *buffer = buffer_;
 	off_t bytes_written = 0;
 	uint8_t *bounce = NULL;
 	off_t ori_offset = offset; // backup
 
-	if (inode->deny_write_cnt)
+	if (inode->deny_write_cnt) {
+		// /**/printf("------- inode_write_at end (inode->deny_write_cnt) -------\n\n");
 		return 0;
+	}
+
+	 // TODO
+	if (inode_length(inode) < offset + size)
+	{   //! 생성된 파일의 inode length보다 쓰려는 offset과 size의 위치가 클 경우
+
+        //? 더 필요한 섹터 수 - 이미 있는 섹터 수
+		size_t sectors = bytes_to_sectors (offset + size) - bytes_to_sectors(inode_length(inode));
+
+		if (sectors > 0)
+		{
+			static char zeros[DISK_SECTOR_SIZE];
+			cluster_t tmp;
+			for (int i = 0; i < sectors; i++)
+			{
+				tmp = fat_create_chain(inode->data.start);
+				disk_write(filesys_disk, cluster_to_sector(tmp), zeros);
+			}
+		}
+
+        //! 아이노드 정보 갱신
+		inode->data.length = offset + size;
+		disk_write(filesys_disk, cluster_to_sector(inode->sector), &inode->data);
+	}
+    // TODO END
 
 	while (size > 0) {
 		/* Sector to write, starting byte offset within sector. */
@@ -478,9 +517,8 @@ off_t inode_write_at(struct inode *inode, const void *buffer_, off_t size, off_t
 		int sector_ofs = offset % DISK_SECTOR_SIZE;
 
 		/* Bytes left in inode, bytes left in sector, lesser of the two. */
-		off_t inode_left = inode_length(inode) - offset;
 		int sector_left = DISK_SECTOR_SIZE - sector_ofs;
-		int min_left = inode_left < sector_left ? inode_left : sector_left;
+		int min_left = sector_left;
 
 		/* Number of bytes to actually write into this sector. */
 		int chunk_size = size < min_left ? size : min_left;
@@ -517,23 +555,30 @@ off_t inode_write_at(struct inode *inode, const void *buffer_, off_t size, off_t
 	free(bounce);
 
 	// if (inode_length(inode) < ori_offset + bytes_written) // inode length 갱신
-	//     inode->data.length = ori_offset + bytes_written;
+	// 	inode->data.length = ori_offset + bytes_written;
 
+	// /**/printf("------- inode_write_at end -------\n\n");
 	return bytes_written;
 }
 #endif
 
 /** #Project 4: File System - Returns the is_dir, in bool, of INODE's data. */
 bool inode_is_dir(const struct inode *inode) {
+	// /**/printf("\n------- inode_is_dir -------\n");
+	// /**/printf("------- inode_is_dir end -------\n\n");
 	return inode->data.is_dir;
 }
 
 /** #Project 4: File System - Returns the removed, in bool, of INODE */
 bool inode_is_removed(const struct inode *inode){
+	// /**/printf("\n------- inode_is_removed -------\n");
+	// /**/printf("------- inode_is_removed end -------\n\n");
 	return inode->removed;
 }
 
 /** #Project 4: File System - Returns the sector, in bytes, of INODE */
 disk_sector_t inode_sector(struct inode *inode){
+	// /**/printf("\n------- inode_sector -------\n");
+	// /**/printf("------- inode_sector end -------\n\n");
 	return inode->sector;
 }
