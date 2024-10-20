@@ -135,6 +135,9 @@ thread_init (void) {
 		list_push_back(&all_list, &(initial_thread->all_elem));
 	initial_thread->status = THREAD_RUNNING;
 	initial_thread->tid = allocate_tid ();
+
+    /** #Project 4: File System - cwd 초기화 */
+    // initial_thread->cwd = NULL;
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -212,6 +215,10 @@ thread_create (const char *name, int priority,
 	/* Initialize thread. */
 	init_thread (t, name, priority);
 	tid = t->tid = allocate_tid ();
+
+    /** #Project 4: File System - cwd 인계 */
+    // if(thread_current()->cwd != NULL)
+	// 	t->cwd = dir_reopen(thread_current()->cwd);
 
 	/* Call the kernel_thread if it scheduled.
 	 * Note) rdi is 1st argument, and rsi is 2nd argument. */
