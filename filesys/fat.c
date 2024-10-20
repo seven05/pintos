@@ -164,10 +164,8 @@ void
 fat_fs_init (void) {
 	/* TODO: Your code goes here. */
 	// /**/printf("\n------- fat_fs_init -------\n");
-	// fat_fs->fat_length = disk_size(filesys_disk) - fat_fs->bs.fat_sectors - BOOT_SECTOR_SIZE;	// 데이터블럭 사이즈
-	// fat_fs->data_start = (disk_sector_t)(fat_fs->bs.fat_start + fat_fs->bs.fat_sectors);
-    fat_fs->data_start = fat_fs->bs.fat_sectors + fat_fs->bs.fat_start;
-    fat_fs->fat_length = disk_size(filesys_disk) - 1 - fat_fs->bs.fat_sectors;
+	fat_fs->fat_length = disk_size(filesys_disk) - fat_fs->bs.fat_sectors - BOOT_SECTOR_SIZE;	// 데이터블럭 사이즈
+	fat_fs->data_start = (disk_sector_t)(fat_fs->bs.fat_start + fat_fs->bs.fat_sectors);
 	// /**/printf("fat_fs->fat_length : %d\n", fat_fs->fat_length);
 	// /**/printf("fat_fs->data_start : %d\n", fat_fs->data_start);
 	// /**/printf("fat_fs->bs.fat_sectors : %d\n", fat_fs->bs.fat_sectors);
@@ -177,17 +175,6 @@ fat_fs_init (void) {
 /*----------------------------------------------------------------------------*/
 /* FAT handling                                                               */
 /*----------------------------------------------------------------------------*/
-cluster_t get_empty_cluster(void) {
-    cluster_t clst = fat_fs->bs.root_dir_cluster + 1;
-    cluster_t fat_length = fat_fs->fat_length;
-
-    for (clst; clst < fat_length; clst++) {
-        if (fat_get(clst) == 0)
-            break;
-    }
-
-    return clst;
-}
 
 /* Add a cluster to the chain.
  * If CLST is 0, start a new chain.
@@ -239,6 +226,28 @@ void fat_remove_chain(cluster_t clst, cluster_t pclst) {
     if (!pclst)  // pcluster가 입력됬으면 pcluster를 chain으로 끝으로 만듬 */
         fat_put(pclst, EOChain);
 }
+// void
+// fat_remove_chain (cluster_t clst, cluster_t pclst) {
+// 	/* TODO: Your code goes here. */
+// 	// /**/printf("\n------- fat_remove_chain -------\n");
+// 	cluster_t now_clst = clst;
+// 	cluster_t next;
+// 	// /**/print_fat_chain(clst);
+// 	// /**/printf("\n====\n\n");
+
+// 	if (fat_get(pclst) == clst) {
+// 		fat_put(pclst, EOChain);
+// 	}
+// 	while (now_clst != EOChain) {
+// 		next = fat_get(now_clst);
+// 		fat_put(now_clst, 0);
+// 		now_clst = next;
+// 	}
+// 	fat_put(now_clst, 0);
+
+// 	// /**/print_fat_chain(clst);
+// 	// /**/printf("------- fat_remove_chain end -------\n\n");
+// }
 
 /* Update a value in the FAT table. */
 void
@@ -259,15 +268,17 @@ fat_get (cluster_t clst) {
 }
 
 /* Covert a cluster # to a sector number. */
-disk_sector_t cluster_to_sector(cluster_t clst) {
-    /* TODO: Your code goes here. */
-    return fat_fs->data_start + clst;
+disk_sector_t
+cluster_to_sector (cluster_t clst) {
+	/* TODO: Your code goes here. */
+	// /**/printf("\n------- cluster_to_sector -------\n");
+	// /**/printf("------- cluster_to_sector end -------\n\n");
+	return fat_fs->data_start + clst /* -1 */;
 }
 
 /** Project 4: Indexed and Extensible Files - 섹터 넘버를 clst로 변환해서 리턴 */
 cluster_t sector_to_cluster(disk_sector_t sctr) {
     cluster_t clst = sctr - fat_fs->data_start;
-
     return clst < 2 ? 0 : clst;
 }
 

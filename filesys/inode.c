@@ -77,41 +77,44 @@ inode_init (void) {
 }
 
 #ifndef EFILESYS
-/** #Project 4: Subdirectories - Initializes an inode with LENGTH bytes of data and writes
- * the new inode to sector SECTOR on the file system disk.
+/* Initializes an inode with LENGTH bytes of data and
+ * writes the new inode to sector SECTOR on the file system
+ * disk.
  * Returns true if successful.
  * Returns false if memory or disk allocation fails. */
-bool inode_create(disk_sector_t sector, off_t length, int32_t is_dir) {    
-    struct inode_disk *disk_inode = NULL;
-    bool success = false;
+bool
+inode_create (disk_sector_t sector, off_t length) {
+	// /**/printf("\n------- inode_create -------\n");
+	struct inode_disk *disk_inode = NULL;
+	bool success = false;
 
-    ASSERT(length >= 0);
+	ASSERT (length >= 0);
 
-    /* If this assertion fails, the inode structure is not exactly
-     * one sector in size, and you should fix that. */
-    ASSERT(sizeof *disk_inode == DISK_SECTOR_SIZE);
+	/* If this assertion fails, the inode structure is not exactly
+	 * one sector in size, and you should fix that. */
+	ASSERT (sizeof *disk_inode == DISK_SECTOR_SIZE);
 
-    disk_inode = calloc(1, sizeof *disk_inode);
-    if (disk_inode != NULL) {
-        size_t sectors = bytes_to_sectors(length);
-        disk_inode->length = length;
-        disk_inode->magic = INODE_MAGIC;
-        disk_inode->is_dir = is_dir;
+	disk_inode = calloc (1, sizeof *disk_inode);
+	if (disk_inode != NULL) {
+		size_t sectors = bytes_to_sectors (length);
+		disk_inode->length = length;
+		disk_inode->magic = INODE_MAGIC;
+		
+		if (free_map_allocate (sectors, &disk_inode->start)) {
+			disk_write (filesys_disk, sector, disk_inode);
+			if (sectors > 0) {
+				static char zeros[DISK_SECTOR_SIZE];
+				size_t i;
 
-        if (free_map_allocate(sectors, &disk_inode->start)) {
-            disk_write(filesys_disk, sector, disk_inode);
-            if (sectors > 0) {
-                static char zeros[DISK_SECTOR_SIZE];
-                size_t i;
-
-                for (i = 0; i < sectors; i++)
-                    disk_write(filesys_disk, disk_inode->start + i, zeros);
-            }
-            success = true;
-        }
-        free(disk_inode);
-    }
-    return success;
+				for (i = 0; i < sectors; i++) 
+					disk_write (filesys_disk, disk_inode->start + i, zeros); 
+			}
+			success = true; 
+		}
+		free (disk_inode);
+	}
+	// /**/printf("------- inode_create end -------\n\n");
+	return success;
 }
 #endif
 
@@ -214,7 +217,7 @@ inode_remove (struct inode *inode) {
 
 /* Reads SIZE bytes from INODE into BUFFER, starting at position OFFSET.
  * Returns the number of bytes actually read, which may be less
- * than SIZE if an error occurs or end of Efile is reached. */
+ * than SIZE if an error occurs or end of file is reached. */
 off_t
 inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset) {
 	// /**/printf("\n------- inode_read_at -------\n");
@@ -266,8 +269,8 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset) {
 #ifndef EFILESYS
 /* Writes SIZE bytes from BUFFER into INODE, starting at OFFSET.
  * Returns the number of bytes actually written, which may be
- * less than SIZE if end of Efile is reached or an error occurs.
- * (Normally a write at end of Efile would extend the inode, but
+ * less than SIZE if end of file is reached or an error occurs.
+ * (Normally a write at end of file would extend the inode, but
  * growth is not yet implemented.) */
 off_t
 inode_write_at (struct inode *inode, const void *buffer_, off_t size,

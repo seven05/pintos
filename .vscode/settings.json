@@ -35,8 +35,6 @@
         "disk.h": "c",
         "loader.h": "c",
         "bitmap.h": "c",
-        "fsutil.h": "c",
-        "inode.h": "c",
-        "round.h": "c"
+        "fsutil.h": "c"
     }
 }
